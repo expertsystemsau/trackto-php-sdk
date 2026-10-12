@@ -69,13 +69,17 @@
         "check:archive": [
             "@php bin/check-package-archive"
         ],
+        "scan:secrets": [
+            "! git grep -lIE 'tk_[A-Za-z0-9]{40}'"
+        ],
         "test": [
             "@analyse",
             "@lint:check",
             "@test:types",
             "@test:unit",
             "@check:deps",
-            "@check:archive"
+            "@check:archive",
+            "@scan:secrets"
         ],
         "clear": [
             "@php vendor/bin/testbench package:purge-skeleton --ansi"

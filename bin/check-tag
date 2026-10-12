@@ -1,0 +1,20 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+if ($argc !== 2) {
+    fwrite(STDERR, "Usage: check-tag <tag>\n");
+    exit(1);
+}
+
+$tag = $argv[1];
+
+// \z, not $: PCRE's $ also matches before a trailing newline.
+if (preg_match('/^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?\z/', $tag) !== 1) {
+    // json_encode keeps a crafted tag from starting a line with the Actions "::" command prefix.
+    fwrite(STDERR, 'Release tag '.json_encode($tag)." rejected: expected v<major>.<minor>.<patch>[-<prerelease>]\n");
+    exit(1);
+}
+
+echo "Release tag $tag accepted.\n";
