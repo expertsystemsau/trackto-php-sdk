@@ -63,11 +63,15 @@
         "test:unit": [
             "vendor/bin/pest --parallel"
         ],
+        "check:deps": [
+            "@php bin/check-package-deps"
+        ],
         "test": [
             "@analyse",
             "@lint:check",
             "@test:types",
-            "@test:unit"
+            "@test:unit",
+            "@check:deps"
         ],
         "clear": [
             "@php vendor/bin/testbench package:purge-skeleton --ansi"

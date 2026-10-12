@@ -1,0 +1,96 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+const FORBIDDEN = ['spatie/laravel-package-tools', 'saloonphp/laravel-plugin'];
+const FRAMEWORK_FREE = 'expertsystemsau/trackto-php-client';
+const FRAMEWORK_PREFIXES = ['laravel/', 'illuminate/', 'orchestra/'];
+
+$root = dirname(__DIR__);
+
+foreach (array_slice($argv, 1) as $arg) {
+    if (str_starts_with($arg, '--root=')) {
+        $root = substr($arg, 7);
+
+        continue;
+    }
+
+    fwrite(STDERR, "Usage: check-package-deps [--root=<dir>]\n");
+    exit(1);
+}
+
+$violations = [];
+
+/** @return array<string, mixed>|null */
+function load(string $file, array &$violations): ?array
+{
+    try {
+        $data = json_decode((string) file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
+    } catch (Throwable $e) {
+        $violations[] = "$file: cannot read manifest ({$e->getMessage()})";
+
+        return null;
+    }
+
+    return is_array($data) ? $data : null;
+}
+
+$rootManifest = load($root.'/composer.json', $violations) ?? [];
+$packages = [];
+
+foreach (glob($root.'/packages/*/composer.json') ?: [] as $file) {
+    $manifest = load($file, $violations);
+
+    if ($manifest !== null) {
+        $packages['packages/'.basename(dirname($file)).'/composer.json'] = $manifest;
+    }
+}
+
+if ($packages === [] && $violations === []) {
+    $violations[] = "$root/packages/*/composer.json: no package manifests found";
+}
+
+$workspace = array_filter(array_map(fn (array $m): ?string => $m['name'] ?? null, $packages));
+$rootRequire = $rootManifest['require'] ?? [];
+
+foreach ($packages as $path => $manifest) {
+    foreach ($manifest['require'] ?? [] as $dep => $constraint) {
+        if (in_array($dep, $workspace, true)) {
+            continue;
+        }
+
+        if (! array_key_exists($dep, $rootRequire)) {
+            $violations[] = "$path: requires $dep ($constraint) but the root composer.json does not";
+        } elseif ($rootRequire[$dep] !== $constraint) {
+            $violations[] = "$path: $dep is '$constraint' but the root has '{$rootRequire[$dep]}'";
+        }
+    }
+
+    if (($manifest['name'] ?? null) === FRAMEWORK_FREE) {
+        foreach (array_keys($manifest['require'] ?? []) as $dep) {
+            foreach (FRAMEWORK_PREFIXES as $prefix) {
+                if (str_starts_with($dep, $prefix)) {
+                    $violations[] = "$path: ".FRAMEWORK_FREE." must stay framework-free but requires $dep";
+                }
+            }
+        }
+    }
+}
+
+foreach (['composer.json' => $rootManifest] + $packages as $path => $manifest) {
+    foreach (['require', 'require-dev'] as $section) {
+        foreach (FORBIDDEN as $dep) {
+            if (isset($manifest[$section][$dep])) {
+                $violations[] = "$path: forbidden dependency $dep in $section";
+            }
+        }
+    }
+}
+
+if ($violations !== []) {
+    fwrite(STDERR, implode("\n", $violations)."\n");
+    exit(1);
+}
+
+echo "Package manifests are in sync with the root composer.json.\n";
