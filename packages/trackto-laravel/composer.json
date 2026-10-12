@@ -1,0 +1,40 @@
+{
+    "name": "expertsystemsau/trackto-laravel-client",
+    "description": "Laravel integration for the track.to API",
+    "keywords": [
+        "ExpertSystems",
+        "trackto",
+        "laravel",
+        "url-shortener"
+    ],
+    "homepage": "https://github.com/expertsystemsau/trackto-laravel-client",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Mitchell Williams",
+            "email": "mitchell@expertsystems.com.au",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "illuminate/support": "^12.0||^13.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "ExpertSystems\\TrackTo\\Laravel\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ExpertSystems\\TrackTo\\Laravel\\TrackToServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

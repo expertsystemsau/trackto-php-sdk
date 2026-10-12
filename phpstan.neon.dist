@@ -1,0 +1,9 @@
+parameters:
+    level: 7
+    paths:
+        - packages/trackto-client/src
+        - packages/trackto-laravel/src
+    tmpDir: build/phpstan
+    phpVersion:
+        min: 80400
+        max: 80599
