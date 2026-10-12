@@ -1,0 +1,93 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+const ALLOWED = ['composer.json', 'README.md', 'LICENSE.md', 'src', 'config', 'resources'];
+
+$root = dirname(__DIR__);
+
+foreach (array_slice($argv, 1) as $arg) {
+    if (str_starts_with($arg, '--root=')) {
+        $root = substr($arg, 7);
+
+        continue;
+    }
+
+    fwrite(STDERR, "Usage: check-package-archive [--root=<dir>]\n");
+    exit(1);
+}
+
+/** @param list<string> $command */
+function run(array $command): array
+{
+    $process = proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+
+    if (! is_resource($process)) {
+        return [1, '', 'cannot start '.$command[0]];
+    }
+
+    $out = (string) stream_get_contents($pipes[1]);
+    $err = (string) stream_get_contents($pipes[2]);
+
+    return [proc_close($process), $out, $err];
+}
+
+$violations = [];
+$manifests = glob($root.'/packages/*/composer.json') ?: [];
+
+if ($manifests === []) {
+    $violations[] = "$root/packages/*/composer.json: no packages found";
+}
+
+foreach ($manifests as $manifest) {
+    $name = basename(dirname($manifest));
+    $tarFile = tempnam(sys_get_temp_dir(), 'trackto-archive-');
+
+    // No --worktree-attributes: plain HEAD:<dir> applies the package's own .gitattributes, as the split dist will.
+    [$code, $tar, $err] = run(['git', '-C', $root, 'archive', '--format=tar', 'HEAD:packages/'.$name]);
+
+    if ($code !== 0) {
+        $violations[] = "packages/$name: git archive failed: ".trim($err);
+        @unlink($tarFile);
+
+        continue;
+    }
+
+    file_put_contents($tarFile, $tar);
+    [$code, $list, $err] = run(['tar', '-tf', $tarFile]);
+    @unlink($tarFile);
+
+    if ($code !== 0) {
+        $violations[] = "packages/$name: tar listing failed: ".trim($err);
+
+        continue;
+    }
+
+    $top = [];
+
+    foreach (explode("\n", trim($list)) as $entry) {
+        $segment = explode('/', $entry)[0];
+
+        if ($segment !== '') {
+            $top[$segment] = true;
+        }
+    }
+
+    foreach (array_keys($top) as $segment) {
+        if (! in_array($segment, ALLOWED, true)) {
+            $violations[] = "packages/$name: $segment would ship in the dist archive";
+        }
+    }
+
+    if (! isset($top['composer.json'])) {
+        $violations[] = "packages/$name: composer.json missing from the dist archive";
+    }
+}
+
+if ($violations !== []) {
+    fwrite(STDERR, implode("\n", $violations)."\n");
+    exit(1);
+}
+
+echo "Package archives contain only distributable files.\n";

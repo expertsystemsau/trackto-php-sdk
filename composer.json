@@ -66,12 +66,16 @@
         "check:deps": [
             "@php bin/check-package-deps"
         ],
+        "check:archive": [
+            "@php bin/check-package-archive"
+        ],
         "test": [
             "@analyse",
             "@lint:check",
             "@test:types",
             "@test:unit",
-            "@check:deps"
+            "@check:deps",
+            "@check:archive"
         ],
         "clear": [
             "@php vendor/bin/testbench package:purge-skeleton --ansi"
