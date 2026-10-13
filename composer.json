@@ -33,6 +33,7 @@
     "autoload-dev": {
         "psr-4": {
             "ExpertSystems\\TrackTo\\Tests\\": "packages/trackto-client/tests/",
+            "ExpertSystems\\TrackTo\\Tests\\Contract\\": "tests/Contract/",
             "ExpertSystems\\TrackTo\\Laravel\\Tests\\": "packages/trackto-laravel/tests/"
         }
     },

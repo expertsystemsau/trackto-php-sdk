@@ -1,0 +1,303 @@
+<?php
+
+declare(strict_types=1);
+
+namespace ExpertSystems\TrackTo\Tests\Contract\Support;
+
+use BackedEnum;
+use DateTimeImmutable;
+use DateTimeInterface;
+use ExpertSystems\TrackTo\Data\TagData;
+use ExpertSystems\TrackTo\Exceptions\TrackToException;
+use ReflectionClass;
+use ReflectionNamedType;
+use ReflectionParameter;
+use RuntimeException;
+
+/**
+ * Pure drift checks between the vendored OpenAPI spec and the SDK. Each returns a list of problems,
+ * so a negative proof passes a mutated copy instead of editing a file.
+ */
+final class Checks
+{
+    private const array HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete'];
+
+    /** Schema names that do not follow the `XResource` to `XData` convention (D-11). */
+    private const array DTO_EXCEPTIONS = ['LinkTagResource' => TagData::class];
+
+    private const string REQUESTS_NAMESPACE = 'ExpertSystems\\TrackTo\\Requests\\';
+
+    private const string DATA_NAMESPACE = 'ExpertSystems\\TrackTo\\Data\\';
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function spec(): array
+    {
+        $spec = json_decode((string) file_get_contents(self::root().'/spec/openapi.json'), true, 512, JSON_THROW_ON_ERROR);
+
+        if (! is_array($spec)) {
+            throw new RuntimeException('spec/openapi.json is not a JSON object.');
+        }
+
+        return $spec;
+    }
+
+    /**
+     * @param  array<string, mixed>  $spec
+     * @return list<string>
+     */
+    public static function specOperations(array $spec): array
+    {
+        $operations = [];
+
+        foreach ($spec['paths'] ?? [] as $path => $item) {
+            foreach (self::HTTP_METHODS as $method) {
+                if (isset($item[$method])) {
+                    $operations[] = self::operation($method, (string) $path);
+                }
+            }
+        }
+
+        return $operations;
+    }
+
+    /**
+     * Every concrete request class as `METHOD /path/{}`, matched by method and path template only (D-13).
+     *
+     * @return list<string>
+     */
+    public static function requestOperations(): array
+    {
+        $operations = [];
+
+        foreach (self::classesIn('/packages/trackto-client/src/Requests', self::REQUESTS_NAMESPACE) as $class) {
+            if ($class->isAbstract()) {
+                continue;
+            }
+
+            $constructor = $class->getConstructor();
+            $args = array_map(self::synthesise(...), $constructor?->getParameters() ?? []);
+            $request = $class->newInstanceArgs($args);
+
+            $operations[] = self::operation($request->getMethod()->value, rawurldecode($request->resolveEndpoint()));
+        }
+
+        return $operations;
+    }
+
+    /**
+     * @param  array<string, mixed>  $spec
+     * @param  list<string>  $requestOps
+     * @param  list<string>  $excluded
+     * @return list<string>
+     */
+    public static function operations(array $spec, array $requestOps, array $excluded): array
+    {
+        $specOps = self::specOperations($spec);
+        $excluded = array_map(self::normaliseOperation(...), $excluded);
+        $problems = [];
+
+        foreach (array_diff($specOps, $requestOps, $excluded) as $operation) {
+            $problems[] = "Spec operation {$operation} has no request class and is not excluded.";
+        }
+
+        foreach (array_intersect($excluded, $requestOps) as $operation) {
+            $problems[] = "Stale exclusion: {$operation} is excluded but a request class exists.";
+        }
+
+        foreach (array_diff($excluded, $specOps) as $operation) {
+            $problems[] = "Excluded operation {$operation} is not in the spec.";
+        }
+
+        foreach (array_diff($requestOps, $specOps) as $operation) {
+            $problems[] = "Request class operation {$operation} is not in the spec.";
+        }
+
+        return $problems;
+    }
+
+    /**
+     * Constructor parameter names by schema name.
+     *
+     * @return array<string, list<string>>
+     */
+    public static function dtoParameters(): array
+    {
+        $parameters = [];
+
+        foreach (self::classesIn('/packages/trackto-client/src/Data', self::DATA_NAMESPACE) as $class) {
+            if (str_ends_with($class->getShortName(), 'Data')) {
+                $schema = substr($class->getShortName(), 0, -4).'Resource';
+                $parameters[$schema] = self::parameterNames($class);
+            }
+        }
+
+        foreach (self::DTO_EXCEPTIONS as $schema => $dto) {
+            $parameters[$schema] = self::parameterNames(new ReflectionClass($dto));
+        }
+
+        return $parameters;
+    }
+
+    /**
+     * @param  array<string, mixed>  $spec
+     * @param  array<string, list<string>>  $paramsBySchema
+     * @return list<string>
+     */
+    public static function dtoFields(array $spec, array $paramsBySchema): array
+    {
+        $problems = [];
+
+        foreach ($spec['components']['schemas'] ?? [] as $name => $schema) {
+            if (! str_ends_with((string) $name, 'Resource')) {
+                continue;
+            }
+
+            if (! isset($paramsBySchema[$name])) {
+                $problems[] = "Schema {$name} has no DTO.";
+
+                continue;
+            }
+
+            foreach (array_keys($schema['properties'] ?? []) as $property) {
+                if (! in_array(lcfirst(str_replace('_', '', ucwords((string) $property, '_'))), $paramsBySchema[$name], true)) {
+                    $problems[] = "{$name}.{$property} has no DTO parameter.";
+                }
+            }
+        }
+
+        return $problems;
+    }
+
+    /**
+     * The spec has no enum for error names, only the prose list in the `name` description.
+     *
+     * @param  array<string, mixed>  $spec
+     * @return list<string>
+     */
+    public static function specErrorCodes(array $spec): array
+    {
+        $description = $spec['components']['schemas']['ApiError']['properties']['name']['description'] ?? '';
+
+        if (! is_string($description) || preg_match('/One of: ([a-z_, ]+)\./', $description, $match) !== 1) {
+            return [];
+        }
+
+        return array_map(trim(...), explode(',', $match[1]));
+    }
+
+    /**
+     * @param  array<string, mixed>  $spec
+     * @param  array<string, class-string>  $byName
+     * @return list<string>
+     */
+    public static function errorCodes(array $spec, array $byName): array
+    {
+        $codes = self::specErrorCodes($spec);
+
+        if ($codes === []) {
+            return ['The ApiError.name description has no parseable "One of: ..." code list.'];
+        }
+
+        $problems = [];
+
+        foreach (array_diff($codes, array_keys($byName)) as $code) {
+            $problems[] = "Spec error code {$code} has no mapped exception.";
+        }
+
+        foreach (array_diff(array_keys($byName), $codes) as $code) {
+            $problems[] = "Mapped error code {$code} is not in the spec.";
+        }
+
+        foreach ($byName as $code => $class) {
+            if (! is_subclass_of($class, TrackToException::class)) {
+                $problems[] = "{$code} maps to {$class}, which is not a TrackToException.";
+
+                continue;
+            }
+
+            $expected = str_replace('_', '', ucwords((string) preg_replace('/_error$/', '', $code), '_')).'Exception';
+
+            if ((new ReflectionClass($class))->getShortName() !== $expected) {
+                $problems[] = "{$code} maps to {$class}, expected a class named {$expected}.";
+            }
+        }
+
+        return $problems;
+    }
+
+    /**
+     * @param  array<string, mixed>  $spec
+     * @return list<string>
+     */
+    public static function versionPin(array $spec, string $default): array
+    {
+        $version = $spec['info']['version'] ?? null;
+
+        return $version === $default
+            ? []
+            : ['Default Track-Version '.$default.' differs from the spec info.version '.(is_string($version) ? $version : 'null').'.'];
+    }
+
+    public static function normaliseOperation(string $operation): string
+    {
+        [$method, $path] = explode(' ', $operation, 2);
+
+        return self::operation($method, $path);
+    }
+
+    private static function operation(string $method, string $path): string
+    {
+        return strtoupper($method).' '.preg_replace('/\{[^}]*\}/', '{}', $path);
+    }
+
+    private static function root(): string
+    {
+        return dirname(__DIR__, 3);
+    }
+
+    /**
+     * @return list<ReflectionClass<object>>
+     */
+    private static function classesIn(string $directory, string $namespace): array
+    {
+        $classes = [];
+
+        foreach (glob(self::root().$directory.'/*.php') ?: [] as $file) {
+            $classes[] = new ReflectionClass($namespace.basename($file, '.php'));
+        }
+
+        return $classes;
+    }
+
+    /**
+     * @param  ReflectionClass<object>  $class
+     * @return list<string>
+     */
+    private static function parameterNames(ReflectionClass $class): array
+    {
+        return array_map(
+            static fn (ReflectionParameter $parameter): string => $parameter->getName(),
+            $class->getConstructor()?->getParameters() ?? [],
+        );
+    }
+
+    private static function synthesise(ReflectionParameter $parameter): mixed
+    {
+        if ($parameter->isDefaultValueAvailable()) {
+            return $parameter->getDefaultValue();
+        }
+
+        $type = $parameter->getType();
+        $name = $type instanceof ReflectionNamedType ? $type->getName() : 'string';
+
+        return match (true) {
+            $name === 'int' => 1,
+            $name === 'array' => [],
+            is_subclass_of($name, BackedEnum::class) => $name::cases()[0],
+            is_a($name, DateTimeInterface::class, true) => new DateTimeImmutable,
+            default => '{p}',
+        };
+    }
+}
