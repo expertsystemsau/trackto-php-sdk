@@ -39,6 +39,9 @@ const LIST_LINKS_SCHEMA = '/paths/~1links/get/responses/200/content/application~
 const FOLDER_SCHEMA = '/components/schemas/FolderResource';
 const LIST_FOLDERS_SCHEMA = '/paths/~1folders/get/responses/200/content/application~1json/schema';
 const CREATE_FOLDER_SCHEMA = '/paths/~1folders/post/responses/201/content/application~1json/schema';
+const TAG_SCHEMA = '/components/schemas/TagResource';
+const LIST_TAGS_SCHEMA = '/paths/~1tags/get/responses/200/content/application~1json/schema';
+const CREATE_TAG_SCHEMA = '/paths/~1tags/post/responses/201/content/application~1json/schema';
 
 it('validates link() against LinkResource', function (): void {
     expect(validateAgainstSpec(Fixtures::link(), LINK_SCHEMA))->toBeNull();
@@ -103,4 +106,18 @@ it('rejects a folder without links_count, so the folder schema check is live', f
     unset($folder['links_count']);
 
     expect(validateAgainstSpec($folder, FOLDER_SCHEMA))->not->toBeNull();
+});
+
+it('validates tag() against TagResource and its list and create responses', function (): void {
+    expect(validateAgainstSpec(Fixtures::tag(), TAG_SCHEMA))->toBeNull()
+        ->and(validateAgainstSpec(['data' => [Fixtures::tag(), Fixtures::tag(['id' => 2, 'name' => 'b'])]], LIST_TAGS_SCHEMA))->toBeNull()
+        ->and(validateAgainstSpec(['data' => []], LIST_TAGS_SCHEMA))->toBeNull()
+        ->and(validateAgainstSpec(['data' => Fixtures::tag()], CREATE_TAG_SCHEMA))->toBeNull();
+});
+
+it('rejects a tag without links_count, so the tag schema check is live', function (): void {
+    $tag = Fixtures::tag();
+    unset($tag['links_count']);
+
+    expect(validateAgainstSpec($tag, TAG_SCHEMA))->not->toBeNull();
 });

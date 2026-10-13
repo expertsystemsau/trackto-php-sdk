@@ -60,6 +60,17 @@ final class Fixtures
     }
 
     /**
+     * A complete TagResource body.
+     *
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    public static function tag(array $overrides = []): array
+    {
+        return array_replace(['id' => 1, 'name' => 'launch', 'color' => '#2563eb', 'links_count' => 0], $overrides);
+    }
+
+    /**
      * A complete, unwrapped GET /links/{link}/analytics 200 body.
      *
      * @param  array<string, mixed>  $overrides
