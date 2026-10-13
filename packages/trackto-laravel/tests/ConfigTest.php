@@ -9,6 +9,7 @@ use ExpertSystems\TrackTo\TrackToClient;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\PendingRequest;
+use Symfony\Component\Process\Process;
 
 const LARAVEL_CONFIG_ENV = [
     'TRACKTO_API_KEY',
@@ -249,5 +250,50 @@ it('keeps the config file serialisable the way config:cache writes it', function
         array_walk_recursive($config, static fn (mixed $value) => expect($value === null || is_scalar($value))->toBeTrue());
     } finally {
         @unlink($file);
+    }
+});
+
+it('runs the real config:cache with no key set and leaves the shared skeleton untouched', function (): void {
+    $root = dirname(__DIR__, 3);
+    $skeletonCache = $root.'/vendor/orchestra/testbench-core/laravel/bootstrap/cache';
+    $checksums = static fn (): array => array_map(md5_file(...), glob($skeletonCache.'/*') ?: []);
+    $before = $checksums();
+    $dir = sys_get_temp_dir().'/trackto-config-cache-'.bin2hex(random_bytes(4));
+    mkdir($dir);
+
+    // Temp cache paths keep the run off vendor/; Testbench adds the root package to its own manifest, so the provider loads.
+    $env = [
+        'APP_CONFIG_CACHE' => $dir.'/config.php',
+        'APP_PACKAGES_CACHE' => $dir.'/packages.php',
+        'APP_SERVICES_CACHE' => $dir.'/services.php',
+    ] + array_fill_keys(LARAVEL_CONFIG_ENV, false);
+    $run = static function (string $command) use ($root, $env): Process {
+        $process = new Process([PHP_BINARY, 'vendor/bin/testbench', $command], $root, $env);
+        $process->run();
+        expect($process->getExitCode())->toBe(0, $command.': '.$process->getOutput().$process->getErrorOutput());
+
+        return $process;
+    };
+
+    try {
+        $run('config:cache');
+
+        /** @var array<string, array<string, mixed>> $cached */
+        $cached = require $dir.'/config.php';
+
+        expect($cached['trackto']['api_key'])->toBeNull()
+            ->and($cached['trackto']['base_url'])->toBe(TrackToClient::DEFAULT_BASE_URL)
+            ->and($cached['trackto']['version'])->toBe(TrackToClient::DEFAULT_VERSION);
+
+        // Testbench ignores the cached file, so this only proves the app still boots with the cache present and no key.
+        $run('about');
+
+        $run('config:clear');
+
+        expect(file_exists($dir.'/config.php'))->toBeFalse()
+            ->and($checksums())->toBe($before);
+    } finally {
+        array_map(unlink(...), glob($dir.'/*') ?: []);
+        @rmdir($dir);
     }
 });
