@@ -13,6 +13,7 @@ use ExpertSystems\TrackTo\Data\BulkResultData;
 use ExpertSystems\TrackTo\Data\LinkAnalyticsData;
 use ExpertSystems\TrackTo\Data\TagData;
 use ExpertSystems\TrackTo\Exceptions\TrackToException;
+use ExpertSystems\TrackTo\Support\Omitted;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionParameter;
@@ -481,11 +482,15 @@ final class Checks
 
     private static function synthesise(ReflectionParameter $parameter): mixed
     {
+        $type = $parameter->getType();
+
         if ($parameter->isDefaultValueAvailable()) {
-            return $parameter->getDefaultValue();
+            $default = $parameter->getDefaultValue();
+
+            // An Omitted id is what BulkLinksRequest::Move rejects, so an int-or-Omitted parameter gets a plain id.
+            return $default === Omitted::Value && str_contains((string) $type, 'int') ? 1 : $default;
         }
 
-        $type = $parameter->getType();
         $name = $type instanceof ReflectionNamedType ? $type->getName() : 'string';
 
         return match (true) {
