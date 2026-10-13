@@ -17,7 +17,7 @@ final class TestClient
 
     private static bool $strayArmed = false;
 
-    public static function make(MockClient $mockClient, string $apiKey = self::API_KEY): TrackToClient
+    public static function make(MockClient $mockClient, ?RecordingSleeper $sleeper = null, string $apiKey = self::API_KEY): TrackToClient
     {
         // Each call appends a global middleware, so arm it once per process.
         if (! self::$strayArmed) {
@@ -25,7 +25,7 @@ final class TestClient
             self::$strayArmed = true;
         }
 
-        return (new TrackToClient(apiKey: $apiKey))->withMockClient($mockClient);
+        return (new TrackToClient(apiKey: $apiKey, sleeper: $sleeper ?? new RecordingSleeper))->withMockClient($mockClient);
     }
 
     /**

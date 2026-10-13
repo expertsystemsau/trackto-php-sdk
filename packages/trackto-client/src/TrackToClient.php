@@ -9,10 +9,14 @@ use ExpertSystems\TrackTo\Exceptions\ConfigurationException;
 use ExpertSystems\TrackTo\Exceptions\ConnectionException;
 use ExpertSystems\TrackTo\Exceptions\ErrorMapper;
 use ExpertSystems\TrackTo\Resources\LinksResource;
+use ExpertSystems\TrackTo\Support\RateLimitInfo;
+use ExpertSystems\TrackTo\Support\Sleeper;
+use ExpertSystems\TrackTo\Support\UsleepSleeper;
 use LogicException;
 use OutOfBoundsException;
 use Saloon\Contracts\ArrayStore as ArrayStoreContract;
 use Saloon\Exceptions\Request\FatalRequestException;
+use Saloon\Exceptions\Request\RequestException;
 use Saloon\Http\Auth\TokenAuthenticator;
 use Saloon\Http\Connector;
 use Saloon\Http\Faking\MockClient;
@@ -46,7 +50,11 @@ final class TrackToClient extends Connector
 
     private ?string $userAgentSuffix;
 
+    private float $maxWait = 3.0;
+
     /**
+     * @param  Sleeper  $sleeper  @internal Retry wait seam; tests inject a recording fake
+     *
      * @throws ConfigurationException When the key is blank or the suffix has control characters
      */
     public function __construct(
@@ -56,7 +64,10 @@ final class TrackToClient extends Connector
         private float $connectTimeout = 10.0,
         private float $timeout = 30.0,
         ?string $userAgentSuffix = null,
+        private Sleeper $sleeper = new UsleepSleeper,
     ) {
+        // Total attempts. Stays 3 even though writes only retry a timed 429: at 1 the hook is never called.
+        $this->tries = 3;
         $this->apiKey = self::wrapApiKey($apiKey);
         $this->userAgentSuffix = self::normaliseSuffix($userAgentSuffix);
     }
@@ -94,6 +105,27 @@ final class TrackToClient extends Connector
         } catch (FatalRequestException $e) {
             throw new ConnectionException($e->getMessage(), (int) $e->getCode());
         }
+    }
+
+    /**
+     * A timed 429 within the cap is retried for any method: the request was not processed.
+     * A wait above the cap means no retry, never "sleep the cap".
+     */
+    public function handleRetry(FatalRequestException|RequestException $exception, Request $request): bool
+    {
+        if ($exception instanceof RequestException && $exception->getResponse()->status() === 429) {
+            $wait = RateLimitInfo::fromResponse($exception->getResponse())->retryAfter;
+
+            if ($wait === null || $wait > $this->maxWait) {
+                return false;
+            }
+
+            $this->sleeper->sleep((float) $wait);
+
+            return true;
+        }
+
+        return false;
     }
 
     public function links(): LinksResource
