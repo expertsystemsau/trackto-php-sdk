@@ -18,7 +18,7 @@ The shape every track.to SDK follows. The PHP client implements it first; the ot
 | `withRetry()` | Total attempts and the longest wait |
 | `withoutRetry()` | One attempt only |
 
-These are the supported way to change a client. Inherited Saloon mutators (`authenticate()`, `withTokenAuth()`, `middleware()`, `debug()` and the public `$tries` property) change the instance in place, so avoid them on a shared client.
+These are the supported way to change a client. Inherited Saloon mutators (`authenticate()`, `withTokenAuth()`, `middleware()`, `debug()` and the public `$tries` property) change the instance in place, so avoid them on a shared client. `sendAsync()` and `pool()` throw `LogicException`: a rejected async promise keeps Guzzle's exception, which holds the `Authorization` header, so only `send()` is supported.
 
 Every constructor argument is passed by name:
 

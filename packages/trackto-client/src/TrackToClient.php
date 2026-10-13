@@ -13,6 +13,7 @@ use ExpertSystems\TrackTo\Resources\LinksResource;
 use ExpertSystems\TrackTo\Support\RateLimitInfo;
 use ExpertSystems\TrackTo\Support\Sleeper;
 use ExpertSystems\TrackTo\Support\UsleepSleeper;
+use GuzzleHttp\Promise\PromiseInterface;
 use InvalidArgumentException;
 use JsonException;
 use LogicException;
@@ -123,6 +124,32 @@ final class TrackToClient extends Connector
         } catch (JsonException|InvalidArgumentException $e) {
             throw $e instanceof TrackToException ? $e : new ConfigurationException('The request could not be built from the given arguments.');
         }
+    }
+
+    /**
+     * Unsupported: a rejected async promise keeps Guzzle's exception, and with it the Authorization header,
+     * as getPrevious(). Only send() sanitises transport failures.
+     *
+     * @throws LogicException Always
+     */
+    public function sendAsync(Request $request, ?MockClient $mockClient = null): never
+    {
+        throw new LogicException('Async requests are not supported by TrackToClient. Use send().');
+    }
+
+    /**
+     * Unsupported for the same reason as sendAsync(): a pooled failure would expose the bearer key.
+     *
+     * @param  iterable<PromiseInterface|Request>|callable(Connector): iterable<PromiseInterface|Request>  $requests
+     * @param  int|callable(int): int  $concurrency
+     * @param  callable(Response, array-key, PromiseInterface): void|null  $responseHandler
+     * @param  callable(mixed, array-key, PromiseInterface): void|null  $exceptionHandler
+     *
+     * @throws LogicException Always
+     */
+    public function pool(iterable|callable $requests = [], int|callable $concurrency = 5, ?callable $responseHandler = null, ?callable $exceptionHandler = null): never
+    {
+        throw new LogicException('Pooled requests are not supported by TrackToClient. Use send().');
     }
 
     /**

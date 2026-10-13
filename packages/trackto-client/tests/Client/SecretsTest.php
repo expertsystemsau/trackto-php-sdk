@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ExpertSystems\TrackTo\Exceptions\NotFoundException;
+use ExpertSystems\TrackTo\Requests\GetLinkRequest;
 use ExpertSystems\TrackTo\Testing\Fixtures;
 use ExpertSystems\TrackTo\Tests\Support\TestClient;
 use ExpertSystems\TrackTo\TrackToClient;
@@ -69,4 +70,12 @@ it('keeps the API key out of a thrown exception and refuses to serialize it', fu
     }
 
     $this->fail('Expected a NotFoundException.');
+});
+
+it('refuses async and pooled sending, which would leak the key through getPrevious()', function (): void {
+    $client = new TrackToClient(apiKey: TestClient::API_KEY);
+
+    expect(fn () => $client->sendAsync(new GetLinkRequest('x')))->toThrow(LogicException::class)
+        ->and(fn () => $client->pool([new GetLinkRequest('x')]))->toThrow(LogicException::class)
+        ->and(fn () => (new GetLinkRequest('x'))->setConnector($client)->sendAsync())->toThrow(LogicException::class);
 });
