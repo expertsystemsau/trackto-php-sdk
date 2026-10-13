@@ -56,6 +56,8 @@ final class LinksResource
 
     /**
      * Lazily yields every link across all pages, in API order. Each foreach sends a fresh set of requests.
+     * The walk stops silently after 10,000 pages (the paginator's hard ceiling), so a larger account should
+     * page with list().
      */
     public function all(
         ?string $search = null,

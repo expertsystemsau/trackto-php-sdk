@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use ExpertSystems\TrackTo\Data\LinkData;
 use ExpertSystems\TrackTo\Pagination\LinksPaginator;
+use ExpertSystems\TrackTo\Requests\ListLinksRequest;
 use ExpertSystems\TrackTo\Testing\Fixtures;
 use ExpertSystems\TrackTo\Tests\Support\TestClient;
 use Saloon\Http\Faking\MockClient;
@@ -117,4 +118,16 @@ it('ends the walk on its own page count when the server repeats a stale current_
 
 it('caps the walk at a hard page ceiling', function (): void {
     expect((new ReflectionProperty(LinksPaginator::class, 'maxPages'))->getDefaultValue())->toBe(10_000);
+});
+
+it('hydrates each page response once while items() walks three pages in order', function (): void {
+    $mock = new MockClient([
+        MockResponse::make(Fixtures::page(pageLinks(['a', 'b']), 1, 3, 2, 5), 200),
+        MockResponse::make(Fixtures::page(pageLinks(['c', 'd']), 2, 3, 2, 5), 200),
+        MockResponse::make(Fixtures::page(pageLinks(['e']), 3, 3, 2, 5), 200),
+    ]);
+    $paginator = new LinksPaginator(TestClient::make($mock), new ListLinksRequest(perPage: 2));
+
+    expect(slugsOf($paginator->items()))->toBe(['a', 'b', 'c', 'd', 'e'])
+        ->and($paginator->hydrations)->toBe(3);
 });

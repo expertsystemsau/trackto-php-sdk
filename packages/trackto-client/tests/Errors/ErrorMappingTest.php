@@ -50,3 +50,12 @@ it('carries Retry-After on the rate limit info', function (): void {
     expect($e->rateLimit()->retryAfter)->toBe(10)
         ->and(method_exists($e, 'retryAfter'))->toBeFalse();
 });
+
+it('caps a server message at 500 characters, counting characters not bytes', function (string $message, string $expected): void {
+    expect(TestClient::failure(MockResponse::make(Fixtures::error('not_found', message: $message), 404))->getMessage())->toBe($expected);
+})->with([
+    'ascii' => [str_repeat('a', 2000), str_repeat('a', 500)],
+    'multibyte' => [str_repeat('é', 2000), str_repeat('é', 500)],
+    'exactly 500' => [str_repeat('b', 500), str_repeat('b', 500)],
+    'short' => ['Link not found.', 'Link not found.'],
+]);

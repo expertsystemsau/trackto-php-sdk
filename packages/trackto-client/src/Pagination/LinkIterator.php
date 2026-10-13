@@ -25,12 +25,15 @@ final readonly class LinkIterator implements IteratorAggregate
      */
     public function getIterator(): Generator
     {
-        foreach (new LinksPaginator($this->client, $this->request) as $response) {
+        $paginator = new LinksPaginator($this->client, $this->request);
+
+        // Saloon's items() is typed as yielding responses, so walk the pages and read items through the cached page().
+        foreach ($paginator as $response) {
             if (! $response instanceof Response) {
                 continue;
             }
 
-            foreach ($this->request->createDtoFromResponse($response)->items as $link) {
+            foreach ($paginator->page($response)->items as $link) {
                 yield $link;
             }
         }

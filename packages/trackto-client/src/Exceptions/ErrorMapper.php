@@ -48,6 +48,9 @@ final class ErrorMapper
             );
         }
 
+        // Characters, not bytes, and no mbstring requirement; the byte cut is the fallback that keeps the cap.
+        $message = preg_match('/\\A.{0,500}/su', $message, $match) === 1 ? $match[0] : substr($message, 0, 500);
+
         $errors = is_array($body['errors'] ?? null) ? $body['errors'] : [];
         $class = self::BY_NAME[$name] ?? self::fallback($status);
 
