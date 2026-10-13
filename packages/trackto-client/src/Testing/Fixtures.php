@@ -49,6 +49,32 @@ final class Fixtures
     }
 
     /**
+     * A complete, unwrapped GET /links/{link}/analytics 200 body.
+     *
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    public static function analytics(array $overrides = []): array
+    {
+        return array_replace([
+            'link' => self::link(),
+            'total' => 5,
+            'overTime' => [
+                ['date' => '2026-07-05', 'count' => 2],
+                ['date' => '2026-07-06', 'count' => 3],
+            ],
+            'topReferrers' => [
+                ['label' => 'example.com', 'count' => 3],
+                ['label' => 'Direct', 'count' => 2],
+            ],
+            'topCountries' => [
+                ['label' => 'AU', 'count' => 4],
+                ['label' => 'Unknown', 'count' => 1],
+            ],
+        ], $overrides);
+    }
+
+    /**
      * A GET /links 200 body. `total` defaults to the number of links given.
      *
      * @param  list<array<string, mixed>>  $links

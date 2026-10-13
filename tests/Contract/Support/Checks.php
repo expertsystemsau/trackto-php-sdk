@@ -7,6 +7,9 @@ namespace ExpertSystems\TrackTo\Tests\Contract\Support;
 use BackedEnum;
 use DateTimeImmutable;
 use DateTimeInterface;
+use ExpertSystems\TrackTo\Data\AnalyticsCountData;
+use ExpertSystems\TrackTo\Data\AnalyticsDayData;
+use ExpertSystems\TrackTo\Data\LinkAnalyticsData;
 use ExpertSystems\TrackTo\Data\TagData;
 use ExpertSystems\TrackTo\Exceptions\TrackToException;
 use ReflectionClass;
@@ -24,6 +27,21 @@ final class Checks
 
     /** Schema names that do not follow the `XResource` to `XData` convention (D-11). */
     private const array DTO_EXCEPTIONS = ['LinkTagResource' => TagData::class];
+
+    /**
+     * Inline response schemas, which have no `XResource` name: operation => [response code, [property path => DTO]].
+     * An empty path is the schema root; a path steps into `items` when its node is an array.
+     *
+     * @var array<string, array{string, array<string, class-string>}>
+     */
+    private const array INLINE_RESPONSES = [
+        'GET /links/{}/analytics' => ['200', [
+            '' => LinkAnalyticsData::class,
+            'overTime' => AnalyticsDayData::class,
+            'topReferrers' => AnalyticsCountData::class,
+            'topCountries' => AnalyticsCountData::class,
+        ]],
+    ];
 
     private const string REQUESTS_NAMESPACE = 'ExpertSystems\\TrackTo\\Requests\\';
 
@@ -127,7 +145,7 @@ final class Checks
         $parameters = [];
 
         foreach (self::classesIn('/packages/trackto-client/src/Data', self::DATA_NAMESPACE) as $class) {
-            if (str_ends_with($class->getShortName(), 'Data')) {
+            if (str_ends_with($class->getShortName(), 'Data') && ! in_array($class->getName(), self::inlineClasses(), true)) {
                 $schema = substr($class->getShortName(), 0, -4).'Resource';
                 $parameters[$schema] = self::parameterNames($class);
             }
@@ -163,6 +181,55 @@ final class Checks
             foreach (array_keys($schema['properties'] ?? []) as $property) {
                 if (! in_array(lcfirst(str_replace('_', '', ucwords((string) $property, '_'))), $paramsBySchema[$name], true)) {
                     $problems[] = "{$name}.{$property} has no DTO parameter.";
+                }
+            }
+        }
+
+        return $problems;
+    }
+
+    /**
+     * Property-for-parameter check of the inline response schemas, by operation (they have no schema name).
+     *
+     * @param  array<string, mixed>  $spec
+     * @param  array<string, array{string, array<string, class-string>}>  $table
+     * @return list<string>
+     */
+    public static function inlineFields(array $spec, array $table = self::INLINE_RESPONSES): array
+    {
+        $problems = [];
+
+        foreach ($table as $operation => [$code, $nodes]) {
+            $schema = self::inlineSchema($spec, $operation, $code);
+
+            if ($schema === null) {
+                $problems[] = "Inline response {$operation} {$code} is not in the spec.";
+
+                continue;
+            }
+
+            foreach ($nodes as $path => $class) {
+                $node = self::descend($schema, (string) $path);
+
+                if ($node === null) {
+                    $problems[] = "{$operation} {$path} is not in the spec schema.";
+
+                    continue;
+                }
+
+                $reflection = new ReflectionClass($class);
+                $parameters = self::parameterNames($reflection);
+
+                foreach ($node['properties'] ?? [] as $property => $child) {
+                    $label = $path === '' ? (string) $property : $path.'.'.$property;
+
+                    if (! in_array(lcfirst(str_replace('_', '', ucwords((string) $property, '_'))), $parameters, true)) {
+                        $problems[] = "{$operation} {$label} has no {$reflection->getShortName()} parameter.";
+                    }
+
+                    if (! isset($nodes[$label]) && self::isInline($child)) {
+                        $problems[] = "{$operation} {$label} is an inline object with no INLINE_RESPONSES entry.";
+                    }
                 }
             }
         }
@@ -250,6 +317,72 @@ final class Checks
     private static function operation(string $method, string $path): string
     {
         return strtoupper($method).' '.preg_replace('/\{[^}]*\}/', '{}', $path);
+    }
+
+    /**
+     * @return list<class-string>
+     */
+    private static function inlineClasses(): array
+    {
+        return array_values(array_unique(array_merge(...array_map(
+            static fn (array $entry): array => array_values($entry[1]),
+            array_values(self::INLINE_RESPONSES),
+        ))));
+    }
+
+    /**
+     * @param  array<string, mixed>  $spec
+     * @return array<string, mixed>|null
+     */
+    private static function inlineSchema(array $spec, string $operation, string $code): ?array
+    {
+        foreach ($spec['paths'] ?? [] as $path => $item) {
+            foreach (self::HTTP_METHODS as $method) {
+                if (isset($item[$method]) && self::operation($method, (string) $path) === $operation) {
+                    $schema = $item[$method]['responses'][$code]['content']['application/json']['schema'] ?? null;
+
+                    return is_array($schema) ? $schema : null;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $schema
+     * @return array<string, mixed>|null
+     */
+    private static function descend(array $schema, string $path): ?array
+    {
+        $node = $schema;
+
+        foreach ($path === '' ? [] : explode('.', $path) as $segment) {
+            $node = $node['properties'][$segment] ?? null;
+
+            if (! is_array($node)) {
+                return null;
+            }
+
+            if (($node['type'] ?? null) === 'array') {
+                $node = $node['items'] ?? null;
+
+                if (! is_array($node)) {
+                    return null;
+                }
+            }
+        }
+
+        return $node;
+    }
+
+    private static function isInline(mixed $property): bool
+    {
+        if (! is_array($property)) {
+            return false;
+        }
+
+        return isset($property['properties']) || (($property['type'] ?? null) === 'array' && isset($property['items']['properties']));
     }
 
     private static function root(): string

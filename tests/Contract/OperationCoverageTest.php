@@ -10,15 +10,18 @@ it('builds or excludes every spec operation', function () use ($excluded): void 
     expect(Checks::operations(Checks::spec(), Checks::requestOperations(), $excluded))->toBe([]);
 });
 
-it('reads the built operations from the request classes', function (): void {
-    $built = Checks::requestOperations();
-    sort($built);
+it('reads the built operations from the request classes', function () use ($excluded): void {
+    $all = [...Checks::requestOperations(), ...array_map(Checks::normaliseOperation(...), $excluded)];
+    $spec = Checks::specOperations(Checks::spec());
+    sort($all);
+    sort($spec);
 
-    expect($built)->toBe(['GET /links', 'GET /links/{}', 'POST /links']);
+    expect($all)->toBe($spec)
+        ->and(Checks::requestOperations())->toContain('GET /links/{}/analytics');
 });
 
-it('excludes exactly the ten Phase 12 operations', function () use ($excluded): void {
-    expect($excluded)->toHaveCount(10)->and($excluded)->toEqualCanonicalizing([
+it('excludes only operations from the original Phase 12 list', function () use ($excluded): void {
+    expect(array_diff($excluded, [
         'POST /links/bulk',
         'GET /folders',
         'POST /folders',
@@ -29,7 +32,7 @@ it('excludes exactly the ten Phase 12 operations', function () use ($excluded): 
         'PATCH /links/{link}',
         'DELETE /links/{link}',
         'GET /links/{link}/analytics',
-    ]);
+    ]))->toBe([]);
 });
 
 it('reports a removed request class', function () use ($excluded): void {

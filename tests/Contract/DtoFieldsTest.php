@@ -8,6 +8,10 @@ it('has a DTO parameter for every resource schema property', function (): void {
     expect(Checks::dtoFields(Checks::spec(), Checks::dtoParameters()))->toBe([]);
 });
 
+it('has a DTO parameter for every inline response property', function (): void {
+    expect(Checks::inlineFields(Checks::spec()))->toBe([]);
+});
+
 it('maps schemas to DTOs by convention plus the LinkTagResource exception', function (): void {
     expect(array_keys(Checks::dtoParameters()))->toEqualCanonicalizing(['LinkResource', 'FolderResource', 'TagResource', 'LinkTagResource'])
         ->and(Checks::dtoParameters()['LinkResource'])->toContain('destinationUrl', 'clickCount');

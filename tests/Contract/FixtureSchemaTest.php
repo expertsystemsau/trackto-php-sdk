@@ -33,6 +33,7 @@ function validateAgainstSpec(array $data, string $pointer): ?string
 const LINK_SCHEMA = '/components/schemas/LinkResource';
 // RFC 6901 §6: braces in a URI fragment are percent-encoded; opis rejects them raw.
 const SHOW_LINK_SCHEMA = '/paths/~1links~1%7Blink%7D/get/responses/200/content/application~1json/schema';
+const ANALYTICS_SCHEMA = '/paths/~1links~1%7Blink%7D~1analytics/get/responses/200/content/application~1json/schema';
 const LIST_LINKS_SCHEMA = '/paths/~1links/get/responses/200/content/application~1json/schema';
 
 it('validates link() against LinkResource', function (): void {
@@ -41,6 +42,10 @@ it('validates link() against LinkResource', function (): void {
 
 it('validates the single-link envelope', function (): void {
     expect(validateAgainstSpec(['data' => Fixtures::link()], SHOW_LINK_SCHEMA))->toBeNull();
+});
+
+it('validates analytics() against the analytics response', function (): void {
+    expect(validateAgainstSpec(Fixtures::analytics(), ANALYTICS_SCHEMA))->toBeNull();
 });
 
 it('validates page() shapes against the list response', function (array $page): void {

@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace ExpertSystems\TrackTo\Resources;
 
 use DateTimeInterface;
+use ExpertSystems\TrackTo\Data\LinkAnalyticsData;
 use ExpertSystems\TrackTo\Data\LinkData;
 use ExpertSystems\TrackTo\Data\LinkPage;
 use ExpertSystems\TrackTo\Enums\LinkSort;
 use ExpertSystems\TrackTo\Pagination\LinkIterator;
 use ExpertSystems\TrackTo\Requests\CreateLinkRequest;
+use ExpertSystems\TrackTo\Requests\GetLinkAnalyticsRequest;
 use ExpertSystems\TrackTo\Requests\GetLinkRequest;
 use ExpertSystems\TrackTo\Requests\ListLinksRequest;
 use ExpertSystems\TrackTo\TrackToClient;
@@ -22,6 +24,13 @@ final class LinksResource
     public function get(string $slug): LinkData
     {
         $request = new GetLinkRequest($slug);
+
+        return $request->createDtoFromResponse($this->client->send($request));
+    }
+
+    public function analytics(string $slug): LinkAnalyticsData
+    {
+        $request = new GetLinkAnalyticsRequest($slug);
 
         return $request->createDtoFromResponse($this->client->send($request));
     }

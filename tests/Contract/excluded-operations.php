@@ -15,5 +15,4 @@ return [
     'DELETE /tags/{tag}', // R051
     'PATCH /links/{link}', // R049
     'DELETE /links/{link}', // R048
-    'GET /links/{link}/analytics', // R048
 ];
