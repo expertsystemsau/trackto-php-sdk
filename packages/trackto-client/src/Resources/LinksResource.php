@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace ExpertSystems\TrackTo\Resources;
 
 use DateTimeInterface;
+use ExpertSystems\TrackTo\Data\BulkResultData;
 use ExpertSystems\TrackTo\Data\LinkAnalyticsData;
 use ExpertSystems\TrackTo\Data\LinkData;
 use ExpertSystems\TrackTo\Data\LinkPage;
+use ExpertSystems\TrackTo\Enums\BulkAction;
 use ExpertSystems\TrackTo\Enums\LinkSort;
 use ExpertSystems\TrackTo\Pagination\LinkIterator;
+use ExpertSystems\TrackTo\Requests\BulkLinksRequest;
 use ExpertSystems\TrackTo\Requests\CreateLinkRequest;
 use ExpertSystems\TrackTo\Requests\DeleteLinkRequest;
 use ExpertSystems\TrackTo\Requests\GetLinkAnalyticsRequest;
@@ -109,5 +112,42 @@ final class LinksResource
     public function delete(string $slug): void
     {
         $this->client->send(new DeleteLinkRequest($slug));
+    }
+
+    /**
+     * Moves 1 to 100 links into a folder in one all-or-nothing request, never chunked or retried. A null folder id unfiles them.
+     *
+     * @param  list<string>  $slugs
+     */
+    public function bulkMove(array $slugs, ?int $folderId): BulkResultData
+    {
+        $request = new BulkLinksRequest(BulkAction::Move, $slugs, folderId: $folderId);
+
+        return $request->createDtoFromResponse($this->client->send($request));
+    }
+
+    /**
+     * Tags 1 to 100 links in one all-or-nothing request, never chunked or retried.
+     *
+     * @param  list<string>  $slugs
+     * @param  list<string>  $tags  Tag names
+     */
+    public function bulkTag(array $slugs, array $tags): BulkResultData
+    {
+        $request = new BulkLinksRequest(BulkAction::Tag, $slugs, tags: $tags);
+
+        return $request->createDtoFromResponse($this->client->send($request));
+    }
+
+    /**
+     * Deletes 1 to 100 links in one request, never chunked or retried.
+     *
+     * @param  list<string>  $slugs
+     */
+    public function bulkDelete(array $slugs): BulkResultData
+    {
+        $request = new BulkLinksRequest(BulkAction::Delete, $slugs);
+
+        return $request->createDtoFromResponse($this->client->send($request));
     }
 }

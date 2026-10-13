@@ -9,6 +9,7 @@ use DateTimeImmutable;
 use DateTimeInterface;
 use ExpertSystems\TrackTo\Data\AnalyticsCountData;
 use ExpertSystems\TrackTo\Data\AnalyticsDayData;
+use ExpertSystems\TrackTo\Data\BulkResultData;
 use ExpertSystems\TrackTo\Data\LinkAnalyticsData;
 use ExpertSystems\TrackTo\Data\TagData;
 use ExpertSystems\TrackTo\Exceptions\TrackToException;
@@ -41,6 +42,7 @@ final class Checks
             'topReferrers' => AnalyticsCountData::class,
             'topCountries' => AnalyticsCountData::class,
         ]],
+        'POST /links/bulk' => ['200', ['data' => BulkResultData::class]],
     ];
 
     private const string REQUESTS_NAMESPACE = 'ExpertSystems\\TrackTo\\Requests\\';
@@ -427,7 +429,8 @@ final class Checks
 
         return match (true) {
             $name === 'int' => 1,
-            $name === 'array' => [],
+            // A required array holds one item so a request that checks its count can be built.
+            $name === 'array' => ['{p}'],
             is_subclass_of($name, BackedEnum::class) => $name::cases()[0],
             is_a($name, DateTimeInterface::class, true) => new DateTimeImmutable,
             default => '{p}',

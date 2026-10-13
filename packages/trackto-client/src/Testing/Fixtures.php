@@ -75,6 +75,17 @@ final class Fixtures
     }
 
     /**
+     * A complete POST /links/bulk 200 body. Overrides merge into `data`.
+     *
+     * @param  array<string, mixed>  $overrides
+     * @return array{data: array<string, mixed>}
+     */
+    public static function bulk(array $overrides = []): array
+    {
+        return ['data' => array_replace(['action' => 'move', 'slugs' => ['abc123']], $overrides)];
+    }
+
+    /**
      * A GET /links 200 body. `total` defaults to the number of links given.
      *
      * @param  list<array<string, mixed>>  $links
