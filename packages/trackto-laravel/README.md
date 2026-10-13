@@ -108,7 +108,7 @@ Both commands print failures to stderr and exit 1, so a failed run leaves `$URL`
 
 ## Octane
 
-The client is immutable and safe to share across requests. To build it once per worker, add `ExpertSystems\TrackTo\TrackToClient::class` to `octane.warm` in `config/octane.php`.
+The client is immutable and safe to share across requests. To build it once per worker, add `ExpertSystems\TrackTo\TrackToClient::class` to `octane.warm` in `config/octane.php`. Warming resolves the client when the worker starts, so the API key must be valid then (a missing key throws `ConfigurationException` at worker start), and a changed key or config only takes effect after `php artisan octane:reload`.
 
 See the [changelog](https://github.com/expertsystemsau/trackto-php-sdk/blob/main/CHANGELOG.md) for release history.
 
