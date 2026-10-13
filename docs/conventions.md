@@ -247,7 +247,7 @@ $client->tags()->delete(id: $tag->id);
 
 ## Retry
 
-- A 429 with `Retry-After` or `RateLimit` reset timing within the 3-second cap is retried for any method, because the request was not processed.
+- A 429 with `Retry-After`, or with a `RateLimit` header showing no budget left, whose wait is within the 3-second cap is retried for any method, because the request was not processed.
 - Reads (`GET`) also retry on a 5xx and on a connection failure. A 5xx waits for its `Retry-After` header when that is within the cap, and 0.5 seconds without one; a `Retry-After` above the cap means no retry.
 - No other 4xx is retried.
 - A write is never re-sent after a 5xx or a connection failure, because the server may have processed it.

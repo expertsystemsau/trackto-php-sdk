@@ -10,6 +10,7 @@ use ExpertSystems\TrackTo\Exceptions\UnexpectedResponseException;
 use ExpertSystems\TrackTo\Resources\FoldersResource;
 use ExpertSystems\TrackTo\Resources\LinksResource;
 use ExpertSystems\TrackTo\Resources\TagsResource;
+use ExpertSystems\TrackTo\Support\RateLimitInfo;
 use ExpertSystems\TrackTo\TrackToClient;
 
 function conventionsDoc(): string
@@ -188,4 +189,10 @@ it('records the accepted exception dump residual', function (): void {
         ->toContain('dd(')
         ->toContain('Authorization')
         ->toContain('log `getMessage()` and `status()`');
+});
+
+it('states that a 429 reset timing is honoured only when the RateLimit header shows no budget left', function (): void {
+    expect(conventionsDoc())->toContain('`RateLimit` header showing no budget left')
+        ->and(RateLimitInfo::fromHeaders(['RateLimit' => '"default";r=3;t=1'])->retryAfter)->toBeNull()
+        ->and(RateLimitInfo::fromHeaders(['RateLimit' => '"default";r=0;t=1'])->retryAfter)->toBe(1);
 });
