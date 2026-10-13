@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace ExpertSystems\TrackTo;
 
 use Composer\InstalledVersions;
+use ExpertSystems\TrackTo\Exceptions\ConfigurationException;
 use ExpertSystems\TrackTo\Resources\LinksResource;
+use LogicException;
 use OutOfBoundsException;
 use Saloon\Contracts\ArrayStore as ArrayStoreContract;
 use Saloon\Http\Auth\TokenAuthenticator;
@@ -36,15 +38,21 @@ final class TrackToClient extends Connector
 
     private SensitiveParameterValue $apiKey;
 
+    private ?string $userAgentSuffix;
+
+    /**
+     * @throws ConfigurationException When the key is blank or the suffix has control characters
+     */
     public function __construct(
         #[SensitiveParameter] string $apiKey,
         private string $baseUrl = self::DEFAULT_BASE_URL,
         private ?string $version = self::DEFAULT_VERSION,
         private float $connectTimeout = 10.0,
         private float $timeout = 30.0,
-        private ?string $userAgentSuffix = null,
+        ?string $userAgentSuffix = null,
     ) {
-        $this->apiKey = new SensitiveParameterValue($apiKey);
+        $this->apiKey = self::wrapApiKey($apiKey);
+        $this->userAgentSuffix = self::normaliseSuffix($userAgentSuffix);
     }
 
     public function resolveBaseUrl(): string
@@ -73,7 +81,7 @@ final class TrackToClient extends Connector
     public function withApiKey(#[SensitiveParameter] string $apiKey): static
     {
         $copy = clone $this;
-        $copy->apiKey = new SensitiveParameterValue($apiKey);
+        $copy->apiKey = self::wrapApiKey($apiKey);
 
         return $copy;
     }
@@ -116,9 +124,36 @@ final class TrackToClient extends Connector
     public function withUserAgentSuffix(?string $suffix): static
     {
         $copy = clone $this;
-        $copy->userAgentSuffix = $suffix;
+        $copy->userAgentSuffix = self::normaliseSuffix($suffix);
 
         return $copy;
+    }
+
+    /**
+     * Lists non-secret options only, so var_dump() and print_r() never show the key.
+     *
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        return [
+            'baseUrl' => $this->baseUrl,
+            'version' => $this->version,
+            'connectTimeout' => $this->connectTimeout,
+            'timeout' => $this->timeout,
+            'userAgentSuffix' => $this->userAgentSuffix,
+            'hasMockClient' => $this->hasMockClient(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     *
+     * @throws LogicException Always
+     */
+    public function __serialize(): array
+    {
+        throw new LogicException('A TrackToClient cannot be serialized because it holds an API key.');
     }
 
     public function headers(): ArrayStoreContract
@@ -166,12 +201,38 @@ final class TrackToClient extends Connector
         ];
     }
 
+    private static function wrapApiKey(#[SensitiveParameter] string $apiKey): SensitiveParameterValue
+    {
+        if (trim($apiKey) === '') {
+            throw new ConfigurationException('The track.to API key must not be blank.');
+        }
+
+        return new SensitiveParameterValue($apiKey);
+    }
+
+    /**
+     * Null or blank means no suffix; control characters would allow header injection.
+     */
+    private static function normaliseSuffix(?string $suffix): ?string
+    {
+        if ($suffix === null) {
+            return null;
+        }
+
+        if (preg_match('/[\x00-\x1F\x7F]/', $suffix) === 1) {
+            throw new ConfigurationException('The User-Agent suffix must not contain control characters.');
+        }
+
+        $suffix = trim($suffix);
+
+        return $suffix === '' ? null : $suffix;
+    }
+
     private function userAgent(): string
     {
         $agent = 'trackto-php/'.$this->sdkVersion().' php/'.PHP_VERSION;
-        $suffix = trim((string) $this->userAgentSuffix);
 
-        return $suffix === '' ? $agent : $agent.' '.$suffix;
+        return $this->userAgentSuffix === null ? $agent : $agent.' '.$this->userAgentSuffix;
     }
 
     private function sdkVersion(): string
