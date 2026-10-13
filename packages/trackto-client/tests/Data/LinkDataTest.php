@@ -84,6 +84,10 @@ it('reads a calendar overflow or a trailing newline as null', function (string $
     'feb 31' => '2026-02-31T00:00:00Z',
     'apr 31' => '2026-04-31T10:00:00Z',
     'trailing newline' => "2026-12-01T09:30:00Z\n",
+    'compact offset' => '2026-07-06T00:00:00+0000',
+    'offset hour 24' => '2026-07-06T00:00:00+24:00',
+    'offset minute 60' => '2026-07-06T00:00:00+10:60',
+    'leap second' => '2026-06-30T23:59:60Z',
 ]);
 
 it('still parses fractional, offset and lower-case z forms', function (string $value): void {
@@ -91,7 +95,6 @@ it('still parses fractional, offset and lower-case z forms', function (string $v
 })->with([
     'fraction' => '2026-12-01T09:30:00.123456Z',
     'colon offset' => '2026-12-01T09:30:00+10:00',
-    'compact offset' => '2026-12-01T09:30:00+1000',
     'lower z' => '2026-12-01T09:30:00z',
 ]);
 

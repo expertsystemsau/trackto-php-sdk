@@ -79,7 +79,7 @@ Slugs are strings and are percent-encoded into the path. A blank slug throws bef
 
 Data objects are `final readonly` classes built with `fromArray()`. Dates are `DateTimeImmutable`. An enum maps a value it does not know to its `Unknown` case instead of failing. Fields the SDK does not know are ignored, so additive API changes ship under the same API version.
 
-Optional fields are read tolerantly: a date that is not an RFC 3339 timestamp becomes `null`, and a malformed `folder` or tag is dropped. A missing or mistyped required field (`id`, `slug`, `destination_url`, `short_url`, `has_password`, `click_count`) is not tolerated: a 2xx response that cannot be turned into a data object throws `UnexpectedResponseException`.
+Optional fields are read tolerantly: a date that is not a strict RFC 3339 timestamp (`Z` or a `±HH:MM` offset; a colonless offset or a leap second `:60` does not qualify) becomes `null`, and a malformed `folder` or tag is dropped. A missing or mistyped required field (`id`, `slug`, `destination_url`, `short_url`, `has_password`, `click_count`) is not tolerated: a 2xx response that cannot be turned into a data object throws `UnexpectedResponseException`.
 
 ## Exceptions
 

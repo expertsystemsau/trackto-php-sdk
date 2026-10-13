@@ -89,11 +89,12 @@ final readonly class LinkData
     }
 
     /**
-     * Only an RFC 3339 timestamp parses; anything else is null, never a relative or "now" date.
+     * Only a strict RFC 3339 timestamp parses: `Z` or a `±HH:MM` offset with the colon, hour 00-23. Anything else is
+     * null, never a relative or "now" date. A leap second (`:60`) is rejected too, because PHP cannot represent it.
      */
     private static function date(mixed $value): ?DateTimeImmutable
     {
-        if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})\z/i', $value) !== 1) {
+        if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)\z/i', $value) !== 1) {
             return null;
         }
 
