@@ -6,6 +6,7 @@ namespace ExpertSystems\TrackTo;
 
 use Composer\InstalledVersions;
 use ExpertSystems\TrackTo\Exceptions\ConfigurationException;
+use ExpertSystems\TrackTo\Exceptions\ErrorMapper;
 use ExpertSystems\TrackTo\Resources\LinksResource;
 use LogicException;
 use OutOfBoundsException;
@@ -13,11 +14,13 @@ use Saloon\Contracts\ArrayStore as ArrayStoreContract;
 use Saloon\Http\Auth\TokenAuthenticator;
 use Saloon\Http\Connector;
 use Saloon\Http\Faking\MockClient;
+use Saloon\Http\Response;
 use Saloon\Repositories\ArrayStore;
 use Saloon\Traits\Plugins\AcceptsJson;
 use Saloon\Traits\Plugins\AlwaysThrowOnErrors;
 use SensitiveParameter;
 use SensitiveParameterValue;
+use Throwable;
 
 /**
  * track.to API connector. All state lives in private properties: headers() and config()
@@ -58,6 +61,19 @@ final class TrackToClient extends Connector
     public function resolveBaseUrl(): string
     {
         return $this->baseUrl;
+    }
+
+    /**
+     * Redirects are off, so any non-2xx (a 3xx included) is a failure.
+     */
+    public function hasRequestFailed(Response $response): bool
+    {
+        return ! $response->successful();
+    }
+
+    public function getRequestException(Response $response, ?Throwable $senderException): Throwable
+    {
+        return ErrorMapper::map($response);
     }
 
     public function links(): LinksResource

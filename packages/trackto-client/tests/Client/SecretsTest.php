@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ExpertSystems\TrackTo\Exceptions\NotFoundException;
 use ExpertSystems\TrackTo\Testing\Fixtures;
 use ExpertSystems\TrackTo\Tests\Support\TestClient;
 use ExpertSystems\TrackTo\TrackToClient;
@@ -47,4 +48,25 @@ it('keeps the key out of the exception message for a bad suffix', function (): v
     }
 
     $this->fail('Expected an exception.');
+});
+
+it('keeps the API key out of a thrown exception and refuses to serialize it', function (): void {
+    $mock = new MockClient([Fixtures::errorResponse('not_found')]);
+
+    try {
+        TestClient::make($mock)->links()->get('x');
+    } catch (NotFoundException $e) {
+        ob_start();
+        var_dump($e);
+        $dumped = (string) ob_get_clean();
+
+        expect($e->getMessage())->not->toContain(TestClient::API_KEY)
+            ->and($dumped)->not->toContain(TestClient::API_KEY)
+            ->and(print_r($e, true))->not->toContain(TestClient::API_KEY)
+            ->and(fn () => serialize($e))->toThrow(LogicException::class);
+
+        return;
+    }
+
+    $this->fail('Expected a NotFoundException.');
 });

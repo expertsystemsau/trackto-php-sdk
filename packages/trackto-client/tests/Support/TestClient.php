@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace ExpertSystems\TrackTo\Tests\Support;
 
 use ExpertSystems\TrackTo\TrackToClient;
+use RuntimeException;
 use Saloon\Config;
 use Saloon\Http\Faking\MockClient;
+use Saloon\Http\Faking\MockResponse;
+use Throwable;
 
 final class TestClient
 {
@@ -23,5 +26,19 @@ final class TestClient
         }
 
         return (new TrackToClient(apiKey: $apiKey))->withMockClient($mockClient);
+    }
+
+    /**
+     * The exception a single links()->get() raises against the given mock response.
+     */
+    public static function failure(MockResponse $response): Throwable
+    {
+        try {
+            self::make(new MockClient([$response]))->links()->get('x');
+        } catch (Throwable $e) {
+            return $e;
+        }
+
+        throw new RuntimeException('Expected an exception.');
     }
 }
