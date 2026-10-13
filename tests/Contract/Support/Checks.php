@@ -238,6 +238,40 @@ final class Checks
             }
         }
 
+        return [...$problems, ...self::unmappedInlineResponses($spec, $table)];
+    }
+
+    /**
+     * 2xx JSON responses that are inline but have no table entry, so a new inline response cannot go unchecked.
+     *
+     * @param  array<string, mixed>  $spec
+     * @param  array<string, array{string, array<string, class-string>}>  $table
+     * @return list<string>
+     */
+    private static function unmappedInlineResponses(array $spec, array $table): array
+    {
+        $problems = [];
+
+        foreach ($spec['paths'] ?? [] as $path => $item) {
+            foreach (self::HTTP_METHODS as $method) {
+                $operation = self::operation($method, (string) $path);
+
+                foreach ($item[$method]['responses'] ?? [] as $code => $response) {
+                    $schema = $response['content']['application/json']['schema'] ?? null;
+
+                    if (! str_starts_with((string) $code, '2') || ! is_array($schema) || isset($table[$operation])) {
+                        continue;
+                    }
+
+                    $data = $schema['properties']['data'] ?? null;
+
+                    if (! isset($schema['$ref']) && (! isset($schema['properties']['data']) || self::isInline($data))) {
+                        $problems[] = "{$operation} {$code} has an inline response schema with no DTO mapping.";
+                    }
+                }
+            }
+        }
+
         return $problems;
     }
 

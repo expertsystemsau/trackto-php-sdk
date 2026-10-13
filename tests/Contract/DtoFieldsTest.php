@@ -99,3 +99,25 @@ it('reports an inline operation that is missing from the spec', function (): voi
 
     expect($problems)->toHaveCount(1)->and($problems[0])->toContain('GET /links/{}/analytics');
 });
+
+it('reports an unmapped inline response on a new operation', function (): void {
+    $spec = Checks::spec();
+    $spec['paths']['/domains']['get']['responses']['200']['content']['application/json']['schema'] = [
+        'type' => 'object',
+        'properties' => ['count' => ['type' => 'integer']],
+    ];
+
+    $problems = Checks::inlineFields($spec);
+
+    expect($problems)->toHaveCount(1)->and($problems[0])->toContain('GET /domains', 'inline response schema');
+});
+
+it('does not report a data envelope that references a schema', function (): void {
+    $spec = Checks::spec();
+    $spec['paths']['/domains']['get']['responses']['200']['content']['application/json']['schema'] = [
+        'type' => 'object',
+        'properties' => ['data' => ['$ref' => '#/components/schemas/LinkResource']],
+    ];
+
+    expect(Checks::inlineFields($spec))->toBe([]);
+});

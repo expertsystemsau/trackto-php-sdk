@@ -20,27 +20,16 @@ it('reads the built operations from the request classes', function () use ($excl
         ->and(Checks::requestOperations())->toContain('GET /links/{}/analytics');
 });
 
-it('excludes only operations from the original Phase 12 list', function () use ($excluded): void {
-    expect(array_diff($excluded, [
-        'POST /links/bulk',
-        'GET /folders',
-        'POST /folders',
-        'DELETE /folders/{folder}',
-        'GET /tags',
-        'POST /tags',
-        'DELETE /tags/{tag}',
-        'PATCH /links/{link}',
-        'DELETE /links/{link}',
-        'GET /links/{link}/analytics',
-    ]))->toBe([]);
+it('excludes nothing: every spec operation is built', function () use ($excluded): void {
+    expect($excluded)->toBe([]);
 });
 
-it('reports a removed request class', function () use ($excluded): void {
-    $built = array_values(array_diff(Checks::requestOperations(), ['GET /links/{}']));
+it('reports the removal of any one built operation', function (string $operation) use ($excluded): void {
+    $built = array_values(array_diff(Checks::requestOperations(), [$operation]));
+    $problems = Checks::operations(Checks::spec(), $built, $excluded);
 
-    expect(Checks::operations(Checks::spec(), $built, $excluded))->toHaveCount(1)
-        ->and(Checks::operations(Checks::spec(), $built, $excluded)[0])->toContain('GET /links/{}');
-});
+    expect($problems)->toHaveCount(1)->and($problems[0])->toContain($operation);
+})->with(fn (): array => array_combine(Checks::requestOperations(), array_map(fn (string $op): array => [$op], Checks::requestOperations())));
 
 it('reports a stale exclusion', function () use ($excluded): void {
     $problems = Checks::operations(Checks::spec(), Checks::requestOperations(), [...$excluded, 'GET /links/{link}']);

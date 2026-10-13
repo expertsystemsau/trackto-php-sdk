@@ -131,3 +131,15 @@ it('hydrates each page response once while items() walks three pages in order', 
     expect(slugsOf($paginator->items()))->toBe(['a', 'b', 'c', 'd', 'e'])
         ->and($paginator->hydrations)->toBe(3);
 });
+
+it('hydrates each page once across a full links()->all() walk', function (): void {
+    $mock = new MockClient([
+        MockResponse::make(Fixtures::page(pageLinks(['a', 'b']), 1, 3, 2, 5), 200),
+        MockResponse::make(Fixtures::page(pageLinks(['c', 'd']), 2, 3, 2, 5), 200),
+        MockResponse::make(Fixtures::page(pageLinks(['e']), 3, 3, 2, 5), 200),
+    ]);
+    $links = TestClient::make($mock)->links()->all(perPage: 2);
+
+    expect(slugsOf($links))->toBe(['a', 'b', 'c', 'd', 'e'])
+        ->and($links->hydrations)->toBe(3);
+});
