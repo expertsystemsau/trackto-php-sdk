@@ -1,0 +1,40 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+// Run from packages/trackto-laravel after installing laravel/framework next to it: boots the provider in a
+// bare application and resolves the client and the facade fake.
+
+use ExpertSystems\TrackTo\Laravel\Facades\TrackTo;
+use ExpertSystems\TrackTo\Laravel\TrackToServiceProvider;
+use ExpertSystems\TrackTo\TrackToClient;
+use Illuminate\Config\Repository;
+use Illuminate\Foundation\Application;
+
+require getcwd().'/vendor/autoload.php';
+
+function check(bool $condition, string $message): void
+{
+    if (! $condition) {
+        fwrite(STDERR, "FAIL: {$message}\n");
+        exit(1);
+    }
+}
+
+$app = new Application(sys_get_temp_dir());
+$app->instance('config', new Repository(['trackto' => ['api_key' => 'tk_smoke']]));
+$app->register(TrackToServiceProvider::class);
+$app->boot();
+
+$client = $app->make(TrackToClient::class);
+
+check($client === $app->make('trackto'), 'the trackto alias resolves a different client');
+check($client === $app->make(TrackToClient::class), 'the client is not a singleton');
+check($app->make('config')->get('trackto.timeout') === 30, 'the package config defaults were not merged');
+
+TrackTo::setFacadeApplication($app);
+TrackTo::fake();
+check(TrackTo::getFacadeRoot()->getMockClient() !== null, 'TrackTo::fake() did not install a mock client');
+
+echo "Provider booted, client and facade resolved.\n";

@@ -145,6 +145,12 @@ jobs:
         run: composer update --${{ matrix.stability }} --prefer-dist --no-interaction --no-progress
 
       # The pin step rewrites this workspace's manifest, so the repo guards run in the tests job against the committed manifests.
-      - name: Check the package classes autoload
+      - name: Check the package classes autoload on its own require set
         run: |
           php -r 'require "vendor/autoload.php"; foreach (["TrackToServiceProvider", "Facades\\TrackTo", "ClientFactory", "Console\\PingCommand", "Console\\ShortenCommand"] as $c) { if (! class_exists("ExpertSystems\\TrackTo\\Laravel\\".$c)) { fwrite(STDERR, "missing $c\n"); exit(1); } }'
+
+      # Only this step adds laravel/framework: the autoload check above proves the package's own require set, this one proves the provider boots and the client and facade resolve on the matrix Laravel.
+      - name: Boot the provider in a bare Laravel application
+        run: |
+          composer require --dev "laravel/framework:${{ matrix.laravel }}" --${{ matrix.stability }} --with-all-dependencies --no-interaction --no-progress
+          php ../../bin/smoke-laravel-boot

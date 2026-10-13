@@ -197,7 +197,8 @@ it('proves the Laravel package standalone in tests.yml', function (): void {
     $matrix = $job['strategy']['matrix'];
     $runs = array_values(array_map(static fn (array $step): string => (string) ($step['run'] ?? ''), $job['steps']));
     $text = implode("\n", $runs);
-    $pin = array_values(array_filter($runs, static fn (string $run): bool => str_contains($run, 'composer require')));
+    $pin = array_values(array_filter($runs, static fn (string $run): bool => str_contains($run, 'composer require "illuminate/support')));
+    $boot = array_values(array_filter($runs, static fn (string $run): bool => str_contains($run, 'bin/smoke-laravel-boot')));
 
     expect($matrix['php'])->toBe([8.4, 8.5])
         ->and($matrix['laravel'])->toBe(['12.*', '13.*'])
@@ -211,7 +212,10 @@ it('proves the Laravel package standalone in tests.yml', function (): void {
         ->and($pin[0])->toContain('illuminate/support:${{ matrix.laravel }}')
         ->and($pin[0])->toContain('illuminate/console:${{ matrix.laravel }}')
         ->and($pin[0])->toContain('--no-update')
-        ->and($text)->toContain('composer update --${{ matrix.stability }}');
+        ->and($text)->toContain('composer update --${{ matrix.stability }}')
+        ->and($boot)->toHaveCount(1)
+        ->and($boot[0])->toContain('laravel/framework:${{ matrix.laravel }}')
+        ->and($boot[0])->toContain('--${{ matrix.stability }}');
 
     foreach (['TrackToServiceProvider', 'Facades\\\\TrackTo', 'ClientFactory', 'Console\\\\PingCommand', 'Console\\\\ShortenCommand'] as $class) {
         expect($text)->toContain($class);
