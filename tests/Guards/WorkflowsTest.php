@@ -49,12 +49,15 @@ it('has no auto-merge workflow', function (): void {
     }
 });
 
-it('never triggers on pull_request_target', function (): void {
+it('never triggers on pull_request_target or workflow_run', function (): void {
     foreach (workflowFiles() as $file) {
         // YAML 1.1 would parse a bare `on:` key as boolean true; Symfony keeps the string.
         $on = workflow(basename($file))['on'];
 
-        expect(array_keys((array) $on))->not->toContain('pull_request_target');
+        // `on` is a map, a list of event names, or a single event name.
+        $triggers = is_array($on) ? array_merge(array_keys($on), array_filter($on, 'is_string')) : [$on];
+
+        expect($triggers)->not->toContain('pull_request_target')->not->toContain('workflow_run');
     }
 });
 
