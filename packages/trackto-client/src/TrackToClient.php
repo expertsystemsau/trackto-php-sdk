@@ -58,7 +58,9 @@ final class TrackToClient extends Connector
     /**
      * @param  Sleeper  $sleeper  @internal Retry wait seam; tests inject a recording fake
      *
-     * @throws ConfigurationException When the key is blank or the suffix has control characters
+     * @throws ConfigurationException When the key is blank, the base URL is not https (plain http only for
+     *                                localhost), a timeout is not a finite positive number, or the version
+     *                                or suffix has control characters
      */
     public function __construct(
         #[SensitiveParameter] string $apiKey,
@@ -73,6 +75,10 @@ final class TrackToClient extends Connector
         $this->tries = 3;
         $this->apiKey = self::wrapApiKey($apiKey);
         $this->userAgentSuffix = self::normaliseSuffix($userAgentSuffix);
+        self::checkBaseUrl($baseUrl);
+        self::checkVersion($version);
+        self::checkTimeout($connectTimeout);
+        self::checkTimeout($timeout);
     }
 
     public function resolveBaseUrl(): string
@@ -204,6 +210,8 @@ final class TrackToClient extends Connector
 
     public function withBaseUrl(string $baseUrl): static
     {
+        self::checkBaseUrl($baseUrl);
+
         $copy = clone $this;
         $copy->baseUrl = $baseUrl;
 
@@ -215,6 +223,8 @@ final class TrackToClient extends Connector
      */
     public function withVersion(?string $version): static
     {
+        self::checkVersion($version);
+
         $copy = clone $this;
         $copy->version = $version;
 
@@ -223,6 +233,8 @@ final class TrackToClient extends Connector
 
     public function withConnectTimeout(float $seconds): static
     {
+        self::checkTimeout($seconds);
+
         $copy = clone $this;
         $copy->connectTimeout = $seconds;
 
@@ -231,6 +243,8 @@ final class TrackToClient extends Connector
 
     public function withTimeout(float $seconds): static
     {
+        self::checkTimeout($seconds);
+
         $copy = clone $this;
         $copy->timeout = $seconds;
 
@@ -342,6 +356,38 @@ final class TrackToClient extends Connector
         $suffix = trim($suffix);
 
         return $suffix === '' ? null : $suffix;
+    }
+
+    /**
+     * The bearer key goes wherever the base URL points, so it must be https; http is for local compose only.
+     */
+    private static function checkBaseUrl(string $baseUrl): void
+    {
+        $parts = parse_url($baseUrl);
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        $local = $host === 'localhost' || $host === '127.0.0.1' || str_ends_with($host, '.localhost');
+
+        if ($host === '' || ! ($scheme === 'https' || ($scheme === 'http' && $local))) {
+            throw new ConfigurationException('The base URL must be an absolute https URL (http is allowed only for localhost).');
+        }
+    }
+
+    private static function checkVersion(?string $version): void
+    {
+        if ($version !== null && preg_match('/[\x00-\x1F\x7F]/', $version) === 1) {
+            throw new ConfigurationException('The API version must not contain control characters.');
+        }
+    }
+
+    /**
+     * Zero means "no timeout" to Guzzle, which would let a stalled upstream block a worker forever.
+     */
+    private static function checkTimeout(float $seconds): void
+    {
+        if (! is_finite($seconds) || $seconds <= 0) {
+            throw new ConfigurationException('Timeouts must be finite numbers of seconds greater than zero.');
+        }
     }
 
     private function userAgent(): string

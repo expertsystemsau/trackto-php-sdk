@@ -63,3 +63,30 @@ it('pins the default timeouts, redirect policy and base URL', function (): void 
         ->and($pending->getUri()->getScheme())->toBe('https')
         ->and($pending->getUri()->getHost())->toBe('api.track.to');
 });
+
+it('rejects a base URL that is not https, other than http on localhost', function (string $url): void {
+    expect(fn () => new TrackToClient(apiKey: TestClient::API_KEY, baseUrl: $url))
+        ->toThrow(ConfigurationException::class)
+        ->and(fn () => (new TrackToClient(apiKey: TestClient::API_KEY))->withBaseUrl($url))
+        ->toThrow(ConfigurationException::class);
+})->with(['http host' => 'http://api.track.to', 'ftp' => 'ftp://api.track.to', 'no scheme' => 'api.track.to', 'relative' => '/links', 'empty' => '', 'no host' => 'https://']);
+
+it('allows http for localhost hosts', function (string $url): void {
+    expect((new TrackToClient(apiKey: TestClient::API_KEY, baseUrl: $url))->resolveBaseUrl())->toBe($url);
+})->with(['http://localhost', 'http://api.localhost', 'http://127.0.0.1:8080']);
+
+it('rejects timeouts that are zero, negative or not finite', function (float $seconds): void {
+    $client = new TrackToClient(apiKey: TestClient::API_KEY);
+
+    expect(fn () => $client->withTimeout($seconds))->toThrow(ConfigurationException::class)
+        ->and(fn () => $client->withConnectTimeout($seconds))->toThrow(ConfigurationException::class)
+        ->and(fn () => new TrackToClient(apiKey: TestClient::API_KEY, timeout: $seconds))->toThrow(ConfigurationException::class)
+        ->and(fn () => new TrackToClient(apiKey: TestClient::API_KEY, connectTimeout: $seconds))->toThrow(ConfigurationException::class);
+})->with(['zero' => 0.0, 'negative' => -1.0, 'nan' => NAN, 'infinity' => INF]);
+
+it('rejects control characters in the version at construction and in withVersion', function (): void {
+    $version = "x\r\nX-Evil: 1";
+
+    expect(fn () => new TrackToClient(apiKey: TestClient::API_KEY, version: $version))->toThrow(ConfigurationException::class)
+        ->and(fn () => (new TrackToClient(apiKey: TestClient::API_KEY))->withVersion($version))->toThrow(ConfigurationException::class);
+});

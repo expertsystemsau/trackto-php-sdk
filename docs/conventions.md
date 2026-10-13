@@ -33,7 +33,7 @@ $client = new TrackToClient(
 );
 ```
 
-A blank key throws `ConfigurationException`.
+A blank key throws `ConfigurationException`, as does a base URL that is not `https` (plain `http` is accepted only for `localhost`, `*.localhost` and `127.0.0.1`), a timeout that is not a finite number above zero, and an API version with control characters.
 
 ## Resources and methods
 
@@ -115,7 +115,7 @@ Three exceptions are not API errors:
 
 - `ConnectionException`: the request never got a response (DNS, refused connection, timeout).
 - `UnexpectedResponseException`: a response arrived but its body is unusable, such as an HTML error page or a 3xx. It carries the status.
-- `ConfigurationException`: the client was built with a blank key, a suffix containing control characters, or an invalid retry setting.
+- `ConfigurationException`: the client was built with a blank key, an insecure base URL, an invalid timeout, a version or suffix containing control characters, or an invalid retry setting.
 
 API exceptions expose:
 
