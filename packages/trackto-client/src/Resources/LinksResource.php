@@ -117,7 +117,7 @@ final class LinksResource
     }
 
     /**
-     * Moves 1 to 100 links into a folder in one all-or-nothing request, never chunked or retried. A null folder id unfiles them.
+     * Moves 1 to 100 links into a folder in one request, never chunked or retried. A refused request (404, 403, 422) changes nothing. A null folder id unfiles them.
      *
      * @param  list<string>  $slugs
      */
@@ -129,7 +129,7 @@ final class LinksResource
     }
 
     /**
-     * Tags 1 to 100 links in one all-or-nothing request, never chunked or retried.
+     * Tags 1 to 100 links in one request, never chunked or retried. A refused request (404, 403, 422) changes nothing.
      *
      * @param  list<string>  $slugs
      * @param  list<string>  $tags  Tag names

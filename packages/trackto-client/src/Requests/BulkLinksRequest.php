@@ -20,7 +20,7 @@ final class BulkLinksRequest extends TrackToRequest implements HasBody
     protected Method $method = Method::POST;
 
     /**
-     * One attempt, whatever withRetry() says: a bulk call is all-or-nothing, and a re-sent delete would 404 on every slug.
+     * One attempt, whatever withRetry() says: a refused bulk call changes nothing, but one that fails mid-execution may leave partial results, and a re-sent delete would 404 on every slug.
      * Saloon reads the request's tries before the connector's, so handleRetry is never reached.
      */
     public ?int $tries = 1;
