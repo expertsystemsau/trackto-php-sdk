@@ -70,7 +70,7 @@
             "@php bin/check-package-archive"
         ],
         "scan:secrets": [
-            "! git grep -lIE 'tk_[A-Za-z0-9]{40}'"
+            "sh bin/scan-secrets"
         ],
         "test": [
             "@analyse",

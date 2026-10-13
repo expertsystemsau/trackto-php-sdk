@@ -9,9 +9,7 @@ use Symfony\Component\Process\Process;
  */
 function runSecretScan(string $cwd): array
 {
-    $scripts = json_decode((string) file_get_contents(dirname(__DIR__, 2).'/composer.json'), true, 512, JSON_THROW_ON_ERROR)['scripts'];
-
-    $process = Process::fromShellCommandline($scripts['scan:secrets'][0], $cwd);
+    $process = new Process(['sh', dirname(__DIR__, 2).'/bin/scan-secrets'], $cwd);
     $process->run();
 
     return [$process->getExitCode() ?? 1, $process->getOutput()];
@@ -20,12 +18,17 @@ function runSecretScan(string $cwd): array
 /**
  * Builds a throwaway repo holding one file; the key is generated at runtime so no key-shaped literal is tracked.
  */
-function secretFixture(string $content, bool $track = true): string
+function secretFixture(string $content, bool $track = true, bool $init = true): string
 {
     $dir = sys_get_temp_dir().'/trackto-secrets-'.bin2hex(random_bytes(6));
     mkdir($dir);
     file_put_contents($dir.'/config.txt', $content);
     $GLOBALS['secretFixtureDirs'][] = $dir;
+
+    if (! $init) {
+        return $dir;
+    }
+
     (new Process(['git', 'init', '-q', '-b', 'main'], $dir))->mustRun();
 
     if ($track) {
@@ -68,4 +71,14 @@ it('ignores untracked files', function (): void {
 
 it('passes at the real repo root', function (): void {
     expect(runSecretScan(dirname(__DIR__, 2))[0])->toBe(0);
+});
+
+it('fails when git cannot scan, instead of reporting clean', function (): void {
+    expect(runSecretScan(secretFixture('token=none', init: false))[0])->not->toBe(0);
+});
+
+it('is the script composer runs for scan:secrets', function (): void {
+    $scripts = json_decode((string) file_get_contents(dirname(__DIR__, 2).'/composer.json'), true, 512, JSON_THROW_ON_ERROR)['scripts'];
+
+    expect($scripts['scan:secrets'])->toBe(['sh bin/scan-secrets']);
 });
