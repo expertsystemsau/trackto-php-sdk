@@ -36,6 +36,9 @@ const SHOW_LINK_SCHEMA = '/paths/~1links~1%7Blink%7D/get/responses/200/content/a
 const ANALYTICS_SCHEMA = '/paths/~1links~1%7Blink%7D~1analytics/get/responses/200/content/application~1json/schema';
 const BULK_SCHEMA = '/paths/~1links~1bulk/post/responses/200/content/application~1json/schema';
 const LIST_LINKS_SCHEMA = '/paths/~1links/get/responses/200/content/application~1json/schema';
+const FOLDER_SCHEMA = '/components/schemas/FolderResource';
+const LIST_FOLDERS_SCHEMA = '/paths/~1folders/get/responses/200/content/application~1json/schema';
+const CREATE_FOLDER_SCHEMA = '/paths/~1folders/post/responses/201/content/application~1json/schema';
 
 it('validates link() against LinkResource', function (): void {
     expect(validateAgainstSpec(Fixtures::link(), LINK_SCHEMA))->toBeNull();
@@ -86,4 +89,18 @@ it('rejects an invalid fixture, so the validator is live', function (): void {
         ->and(validateAgainstSpec(['data' => Fixtures::link(['status' => 'archived'])], SHOW_LINK_SCHEMA))->not->toBeNull()
         ->and(validateAgainstSpec(['data' => []], LIST_LINKS_SCHEMA))->not->toBeNull()
         ->and(validateAgainstSpec(['data' => Fixtures::analytics()], ANALYTICS_SCHEMA))->not->toBeNull();
+});
+
+it('validates folder() against FolderResource and its list and create responses', function (): void {
+    expect(validateAgainstSpec(Fixtures::folder(), FOLDER_SCHEMA))->toBeNull()
+        ->and(validateAgainstSpec(['data' => [Fixtures::folder(), Fixtures::folder(['id' => 2, 'name' => 'B'])]], LIST_FOLDERS_SCHEMA))->toBeNull()
+        ->and(validateAgainstSpec(['data' => []], LIST_FOLDERS_SCHEMA))->toBeNull()
+        ->and(validateAgainstSpec(['data' => Fixtures::folder()], CREATE_FOLDER_SCHEMA))->toBeNull();
+});
+
+it('rejects a folder without links_count, so the folder schema check is live', function (): void {
+    $folder = Fixtures::folder();
+    unset($folder['links_count']);
+
+    expect(validateAgainstSpec($folder, FOLDER_SCHEMA))->not->toBeNull();
 });

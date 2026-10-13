@@ -58,6 +58,26 @@ abstract class TrackToRequest extends Request
     }
 
     /**
+     * The response's `data` list, for unpaginated list bodies.
+     *
+     * @return list<array<string, mixed>>
+     *
+     * @throws JsonException
+     * @throws UnexpectedValueException
+     */
+    protected function dataList(Response $response): array
+    {
+        $data = $this->decode($response)['data'] ?? null;
+
+        if (is_array($data) && array_is_list($data) && array_filter($data, is_array(...)) === $data) {
+            /** @var list<array<string, mixed>> */
+            return $data;
+        }
+
+        throw new UnexpectedValueException('The track.to response has no data list.');
+    }
+
+    /**
      * Runs a hydration closure, turning any failure to read a 2xx body into UnexpectedResponseException.
      *
      * @template T

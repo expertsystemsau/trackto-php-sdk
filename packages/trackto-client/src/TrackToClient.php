@@ -9,6 +9,7 @@ use ExpertSystems\TrackTo\Exceptions\ConfigurationException;
 use ExpertSystems\TrackTo\Exceptions\ConnectionException;
 use ExpertSystems\TrackTo\Exceptions\ErrorMapper;
 use ExpertSystems\TrackTo\Exceptions\TrackToException;
+use ExpertSystems\TrackTo\Resources\FoldersResource;
 use ExpertSystems\TrackTo\Resources\LinksResource;
 use ExpertSystems\TrackTo\Support\RateLimitInfo;
 use ExpertSystems\TrackTo\Support\Sleeper;
@@ -221,6 +222,11 @@ final class TrackToClient extends Connector
     public function links(): LinksResource
     {
         return new LinksResource($this);
+    }
+
+    public function folders(): FoldersResource
+    {
+        return new FoldersResource($this);
     }
 
     /**

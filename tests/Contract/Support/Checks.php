@@ -100,7 +100,9 @@ final class Checks
             $args = array_map(self::synthesise(...), $constructor?->getParameters() ?? []);
             $request = $class->newInstanceArgs($args);
 
-            $operations[] = self::operation($request->getMethod()->value, rawurldecode($request->resolveEndpoint()));
+            // An int id request synthesises /folders/1; a numeric segment stands for the spec's {param}.
+            $path = (string) preg_replace('#/\d+(?=/|$)#', '/{}', rawurldecode($request->resolveEndpoint()));
+            $operations[] = self::operation($request->getMethod()->value, $path);
         }
 
         return $operations;

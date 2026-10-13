@@ -49,6 +49,17 @@ final class Fixtures
     }
 
     /**
+     * A complete FolderResource body.
+     *
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    public static function folder(array $overrides = []): array
+    {
+        return array_replace(['id' => 1, 'name' => 'Campaigns', 'links_count' => 0], $overrides);
+    }
+
+    /**
      * A complete, unwrapped GET /links/{link}/analytics 200 body.
      *
      * @param  array<string, mixed>  $overrides
