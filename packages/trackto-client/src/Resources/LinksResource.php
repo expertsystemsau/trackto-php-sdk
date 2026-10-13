@@ -11,6 +11,7 @@ use ExpertSystems\TrackTo\Data\LinkPage;
 use ExpertSystems\TrackTo\Enums\LinkSort;
 use ExpertSystems\TrackTo\Pagination\LinkIterator;
 use ExpertSystems\TrackTo\Requests\CreateLinkRequest;
+use ExpertSystems\TrackTo\Requests\DeleteLinkRequest;
 use ExpertSystems\TrackTo\Requests\GetLinkAnalyticsRequest;
 use ExpertSystems\TrackTo\Requests\GetLinkRequest;
 use ExpertSystems\TrackTo\Requests\ListLinksRequest;
@@ -78,5 +79,13 @@ final class LinksResource
         $request = new CreateLinkRequest($destinationUrl, $slug, $expiresAt, $password, $folderId, $tags);
 
         return $request->createDtoFromResponse($this->client->send($request));
+    }
+
+    /**
+     * Deletes the link. A missing link raises NotFoundException; it is never treated as already deleted.
+     */
+    public function delete(string $slug): void
+    {
+        $this->client->send(new DeleteLinkRequest($slug));
     }
 }

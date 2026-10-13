@@ -14,5 +14,4 @@ return [
     'POST /tags', // R051
     'DELETE /tags/{tag}', // R051
     'PATCH /links/{link}', // R049
-    'DELETE /links/{link}', // R048
 ];
