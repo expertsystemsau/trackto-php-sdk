@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ExpertSystems\TrackTo\Data\LinkData;
+use ExpertSystems\TrackTo\Pagination\LinksPaginator;
 use ExpertSystems\TrackTo\Testing\Fixtures;
 use ExpertSystems\TrackTo\Tests\Support\TestClient;
 use Saloon\Http\Faking\MockClient;
@@ -101,4 +102,19 @@ it('never requests a URL taken from a response', function (): void {
             ->and($uri->getPath())->toBe('/links')
             ->and($response->getPendingRequest()->query()->get('page'))->toBe($i + 1);
     }
+});
+
+it('ends the walk on its own page count when the server repeats a stale current_page', function (): void {
+    $mock = new MockClient([
+        MockResponse::make(Fixtures::page(pageLinks(['a']), 1, 3, 1, 3), 200),
+        MockResponse::make(Fixtures::page(pageLinks(['b']), 1, 3, 1, 3), 200),
+        MockResponse::make(Fixtures::page(pageLinks(['c']), 1, 3, 1, 3), 200),
+    ]);
+
+    expect(slugsOf(TestClient::make($mock)->links()->all(perPage: 1)))->toBe(['a', 'b', 'c']);
+    $mock->assertSentCount(3);
+});
+
+it('caps the walk at a hard page ceiling', function (): void {
+    expect((new ReflectionProperty(LinksPaginator::class, 'maxPages'))->getDefaultValue())->toBe(10_000);
 });

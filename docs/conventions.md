@@ -41,7 +41,7 @@ A blank key throws `ConfigurationException`, as does a base URL that is not `htt
 
 Method names come from one vocabulary: `list`, `all`, `get`, `create`, `update` and `delete`. Phase 12 adds `update`, `delete`, analytics and bulk actions. Inputs are named arguments, never input objects.
 
-`list()` fetches one page and returns a `LinkPage`. `all()` returns a lazy iterator over every page; it can be iterated more than once, and each iteration makes fresh requests.
+`list()` fetches one page and returns a `LinkPage`. `all()` returns a lazy iterator over every page; it can be iterated more than once, and each iteration makes fresh requests. It counts pages itself rather than trusting the server's `current_page`, and stops after 10,000 pages whatever the server reports.
 
 ```php
 use ExpertSystems\TrackTo\Enums\LinkSort;

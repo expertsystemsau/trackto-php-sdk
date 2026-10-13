@@ -17,6 +17,11 @@ use Saloon\PaginationPlugin\PagedPaginator;
  */
 final class LinksPaginator extends PagedPaginator
 {
+    /**
+     * Hard ceiling so a server that never reports the last page cannot walk forever.
+     */
+    protected ?int $maxPages = 10_000;
+
     protected function applyPagination(Request $request): Request
     {
         // Saloon's currentPage is 0-based; its `$page` counter is deprecated.
@@ -29,7 +34,9 @@ final class LinksPaginator extends PagedPaginator
     {
         $page = $this->hydrate($response);
 
-        return $page->items === [] || $page->currentPage >= $page->lastPage;
+        // Our own counter, not meta.current_page: a stale or constant value from the server must not extend
+        // the walk. Saloon calls this after next(), so currentPage already equals the 1-based page just read.
+        return $page->items === [] || $this->currentPage >= $page->lastPage;
     }
 
     /**
