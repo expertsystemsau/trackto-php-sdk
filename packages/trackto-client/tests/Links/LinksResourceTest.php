@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use ExpertSystems\TrackTo\Enums\LinkSort;
 use ExpertSystems\TrackTo\Exceptions\UnexpectedResponseException;
+use ExpertSystems\TrackTo\Exceptions\ValidationException;
+use ExpertSystems\TrackTo\Resources\LinksResource;
 use ExpertSystems\TrackTo\Testing\Fixtures;
 use ExpertSystems\TrackTo\Tests\Support\TestClient;
 use Saloon\Http\Faking\MockClient;
@@ -90,4 +92,64 @@ it('raises UnexpectedResponseException when a page body has no meta', function (
     $mock = new MockClient([MockResponse::make($body, 200)]);
 
     expect(fn () => TestClient::make($mock)->links()->list())->toThrow(UnexpectedResponseException::class);
+});
+
+it('creates with only the destination url when nothing else is given', function (): void {
+    $mock = new MockClient([MockResponse::make(['data' => Fixtures::link(['slug' => 'new'])], 201)]);
+
+    $link = TestClient::make($mock)->links()->create(destinationUrl: 'https://example.com/a');
+
+    $pending = $mock->getLastPendingRequest();
+
+    expect($link->slug)->toBe('new')
+        ->and($pending?->getMethod()->value)->toBe('POST')
+        ->and($pending?->getUri()->getPath())->toBe('/links')
+        ->and($pending?->body()->all())->toBe(['destination_url' => 'https://example.com/a'])
+        ->and($pending?->headers()->get('Content-Type'))->toBe('application/json');
+});
+
+it('sends every create argument, formatting expiry as ISO 8601 with its offset', function (): void {
+    $mock = new MockClient([MockResponse::make(['data' => Fixtures::link()], 201)]);
+
+    TestClient::make($mock)->links()->create(
+        destinationUrl: 'https://example.com/a',
+        slug: 'spring',
+        expiresAt: new DateTimeImmutable('2026-12-01 09:30:00', new DateTimeZone('Australia/Brisbane')),
+        password: 'hunter22',
+        folderId: 3,
+        tags: ['launch', 'q4'],
+    );
+
+    expect($mock->getLastPendingRequest()?->body()->all())->toBe([
+        'destination_url' => 'https://example.com/a',
+        'slug' => 'spring',
+        'expires_at' => '2026-12-01T09:30:00+10:00',
+        'password' => 'hunter22',
+        'folder_id' => 3,
+        'tags' => ['launch', 'q4'],
+    ]);
+});
+
+it('throws ValidationException with field errors on a 422 create', function (): void {
+    $mock = new MockClient([Fixtures::errorResponse('validation_error', ['destination_url' => ['The destination url field is required.']])]);
+
+    try {
+        TestClient::make($mock)->links()->create(destinationUrl: '');
+    } catch (ValidationException $e) {
+        expect($e->errorsFor('destination_url'))->toBe(['The destination url field is required.']);
+
+        return;
+    }
+
+    throw new RuntimeException('Expected ValidationException.');
+});
+
+it('pins the public parameter names of create() and list()', function (): void {
+    $names = static fn (string $method): array => array_map(
+        static fn (ReflectionParameter $p): string => $p->getName(),
+        (new ReflectionMethod(LinksResource::class, $method))->getParameters(),
+    );
+
+    expect($names('create'))->toBe(['destinationUrl', 'slug', 'expiresAt', 'password', 'folderId', 'tags'])
+        ->and($names('list'))->toBe(['search', 'folderId', 'tag', 'sort', 'perPage', 'page']);
 });

@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace ExpertSystems\TrackTo\Resources;
 
+use DateTimeInterface;
 use ExpertSystems\TrackTo\Data\LinkData;
 use ExpertSystems\TrackTo\Data\LinkPage;
 use ExpertSystems\TrackTo\Enums\LinkSort;
 use ExpertSystems\TrackTo\Pagination\LinkIterator;
+use ExpertSystems\TrackTo\Requests\CreateLinkRequest;
 use ExpertSystems\TrackTo\Requests\GetLinkRequest;
 use ExpertSystems\TrackTo\Requests\ListLinksRequest;
 use ExpertSystems\TrackTo\TrackToClient;
+use SensitiveParameter;
 
 final class LinksResource
 {
@@ -50,5 +53,21 @@ final class LinksResource
             $this->client,
             new ListLinksRequest($search, $folderId, $tag, $sort, $perPage, null),
         );
+    }
+
+    /**
+     * @param  list<string>|null  $tags  Tag names
+     */
+    public function create(
+        string $destinationUrl,
+        ?string $slug = null,
+        ?DateTimeInterface $expiresAt = null,
+        #[SensitiveParameter] ?string $password = null,
+        ?int $folderId = null,
+        ?array $tags = null,
+    ): LinkData {
+        $request = new CreateLinkRequest($destinationUrl, $slug, $expiresAt, $password, $folderId, $tags);
+
+        return $request->createDtoFromResponse($this->client->send($request));
     }
 }

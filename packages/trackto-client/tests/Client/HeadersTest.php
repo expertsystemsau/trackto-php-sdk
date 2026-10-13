@@ -16,10 +16,11 @@ use Saloon\Http\Faking\MockResponse;
 dataset('operations', [
     'get' => [fn (TrackToClient $client): mixed => $client->links()->get('007'), 'GET', '/links/007', 200],
     'list' => [fn (TrackToClient $client): mixed => $client->links()->list(), 'GET', '/links', 200],
+    'create' => [fn (TrackToClient $client): mixed => $client->links()->create(destinationUrl: 'https://example.com/a'), 'POST', '/links', 201],
 ]);
 
 it('sends the contract headers on every operation', function (Closure $operation, string $method, string $path, int $status): void {
-    $body = $path === '/links'
+    $body = $method === 'GET' && $path === '/links'
         ? Fixtures::page([Fixtures::link(['slug' => '007'])])
         : ['data' => Fixtures::link(['slug' => '007'])];
     $mock = new MockClient([MockResponse::make($body, $status)]);
