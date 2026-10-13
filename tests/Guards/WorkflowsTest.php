@@ -124,12 +124,13 @@ it('serialises split runs per package and ref without cancelling', function (): 
         ->and($concurrency['cancel-in-progress'])->toBeFalse();
 });
 
-it('keeps actions/checkout at v4 with default credentials in split.yml', function (): void {
+it('keeps actions/checkout on a v4 SHA with default credentials in split.yml', function (): void {
     /** @var list<array<string, mixed>> $steps */
     $steps = workflow('split.yml')['jobs']['split']['steps'];
     $text = (string) file_get_contents(dirname(__DIR__, 2).'/.github/workflows/split.yml');
 
-    expect($steps[0]['uses'])->toBe('actions/checkout@v4')
+    expect($steps[0]['uses'])->toBe('actions/checkout@11d5960a326750d5838078e36cf38b85af677262')
+        ->and($text)->toContain('actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.')
         ->and($steps[0]['with']['fetch-depth'])->toBe(0)
         ->and($steps[0]['with'])->not->toHaveKey('persist-credentials')
         ->and($text)->toContain('# Pinned to v4 on purpose (do NOT bump to match the other workflows).');
@@ -176,4 +177,16 @@ it('marks pre-release tags and fails on view errors other than not found', funct
     $release = (string) $steps[array_key_last($steps)]['run'];
 
     expect($release)->toContain('release not found')->and($release)->toContain('--prerelease')->and($release)->toContain('$pre');
+});
+
+it('pins every third-party action to a full commit SHA', function (): void {
+    foreach (workflowFiles() as $file) {
+        preg_match_all('/^\s*(?:-\s+)?uses:\s*(\S+)/m', (string) file_get_contents($file), $matches);
+
+        expect($matches[1])->not->toBeEmpty();
+
+        foreach ($matches[1] as $uses) {
+            expect($uses)->toMatch('/@[0-9a-f]{40}$/');
+        }
+    }
 });

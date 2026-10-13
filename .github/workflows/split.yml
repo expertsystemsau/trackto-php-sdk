@@ -27,7 +27,7 @@ jobs:
       # the auth token via an includeIf credentials file instead of that inline
       # header, so the unset hits a missing key (exit 5) and aborts the split.
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
 
@@ -38,7 +38,7 @@ jobs:
         run: php bin/check-tag "$TAG"
 
       - name: Split ${{ matrix.package.name }}
-        uses: claudiodekker/splitsh-action@v1.0.0
+        uses: claudiodekker/splitsh-action@592ac9aa0926e6813f95a15bce0f6df5b513cf88 # v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.SPLIT_PAT }}
         with:
