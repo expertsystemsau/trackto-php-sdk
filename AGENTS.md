@@ -25,7 +25,7 @@ The root `composer.json` is dev-only and never published. Its psr-4 autoload cov
 - Keep the root `require` in sync with every package runtime `require`, constraint strings identical. Sibling package requires are exempt.
 - `actions/checkout` stays pinned at `v4` in `.github/workflows/split.yml`. Do not bump it.
 - Every commit that touches `packages/**` becomes permanent public history in the split repositories. Write commit subjects for outside readers and never force-push `main`.
-- Release policy, `SPLIT_PAT` rotation, and the changelog-protection interaction live in `CONTRIBUTING.md`. Do not tag, push, or publish without explicit approval.
+- Release policy, `SPLIT_PAT` rotation, and the hand-written changelog step live in `CONTRIBUTING.md`. Do not tag, push, or publish without explicit approval.
 
 ## Operational notes
 

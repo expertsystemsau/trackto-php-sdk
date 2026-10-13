@@ -112,3 +112,16 @@ it('fails on a committed workbench directory', function (): void {
 it('fails closed when the repo has no commit', function (): void {
     expect(runArchiveGuard(archiveFixture(archiveBaseFiles(), ARCHIVE_ATTRIBUTES, commit: false))[0])->toBe(1);
 });
+
+it('warns that uncommitted package changes are not checked', function (): void {
+    $root = archiveFixture(archiveBaseFiles(), ARCHIVE_ATTRIBUTES);
+    file_put_contents($root.'/packages/demo/.gitattributes', "* text=auto eol=lf\n");
+
+    [$code, $output] = runArchiveGuard($root);
+
+    expect($code)->toBe(0)->and($output)->toContain('uncommitted changes');
+});
+
+it('does not warn on a clean checkout', function (): void {
+    expect(runArchiveGuard(archiveFixture(archiveBaseFiles(), ARCHIVE_ATTRIBUTES))[1])->not->toContain('uncommitted');
+});

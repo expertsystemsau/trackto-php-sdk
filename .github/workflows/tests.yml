@@ -103,7 +103,4 @@ jobs:
         run: |
           php bin/check-package-deps
           php bin/check-package-archive
-          if git grep -lIE 'tk_[A-Za-z0-9]{40}'; then
-            echo "::error::API key pattern found in the files listed above"
-            exit 1
-          fi
+          sh bin/scan-secrets

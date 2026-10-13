@@ -27,7 +27,7 @@ jobs:
       # the auth token via an includeIf credentials file instead of that inline
       # header, so the unset hits a missing key (exit 5) and aborts the split.
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
 
@@ -38,7 +38,7 @@ jobs:
         run: php bin/check-tag "$TAG"
 
       - name: Split ${{ matrix.package.name }}
-        uses: claudiodekker/splitsh-action@v1.0.0
+        uses: claudiodekker/splitsh-action@592ac9aa0926e6813f95a15bce0f6df5b513cf88 # v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.SPLIT_PAT }}
         with:
@@ -55,9 +55,17 @@ jobs:
           TARGET: ${{ matrix.package.target }}
           MONO: ${{ github.repository }}
         run: |
-          if gh release view "$TAG" --repo "$TARGET" >/dev/null 2>&1; then
+          if out=$(gh release view "$TAG" --repo "$TARGET" 2>&1); then
             echo "Release $TAG already exists on $TARGET; leaving it untouched."
             exit 0
           fi
-          gh release create "$TAG" --repo "$TARGET" --verify-tag --title "$TAG" \
+          # Only "not found" means missing; auth, rate-limit and network errors must fail here.
+          case "$out" in
+            *"release not found"*) ;;
+            *) echo "::error::gh release view failed: $out"; exit 1 ;;
+          esac
+          # check-tag guarantees a "-" only introduces a pre-release part.
+          pre=""
+          case "$TAG" in *-*) pre="--prerelease" ;; esac
+          gh release create "$TAG" --repo "$TARGET" --verify-tag $pre --title "$TAG" \
             --notes "Release $TAG. Monorepo: https://github.com/$MONO/releases/tag/$TAG. Changelog: https://github.com/$MONO/blob/main/CHANGELOG.md"

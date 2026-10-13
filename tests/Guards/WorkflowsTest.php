@@ -49,12 +49,15 @@ it('has no auto-merge workflow', function (): void {
     }
 });
 
-it('never triggers on pull_request_target', function (): void {
+it('never triggers on pull_request_target or workflow_run', function (): void {
     foreach (workflowFiles() as $file) {
         // YAML 1.1 would parse a bare `on:` key as boolean true; Symfony keeps the string.
         $on = workflow(basename($file))['on'];
 
-        expect(array_keys((array) $on))->not->toContain('pull_request_target');
+        // `on` is a map, a list of event names, or a single event name.
+        $triggers = is_array($on) ? array_merge(array_keys($on), array_filter($on, 'is_string')) : [$on];
+
+        expect($triggers)->not->toContain('pull_request_target')->not->toContain('workflow_run');
     }
 });
 
@@ -86,8 +89,8 @@ it('proves the client standalone in tests.yml', function (): void {
         ->and($names)->toContain('Run the repo guards');
 });
 
-it('updates the changelog only on a released release', function (): void {
-    expect(workflow('update-changelog.yml')['on']['release']['types'])->toBe(['released']);
+it('has no workflow that pushes CHANGELOG.md to protected main', function (): void {
+    expect(dirname(__DIR__, 2).'/.github/workflows/update-changelog.yml')->not->toBeFile();
 });
 
 it('triggers split.yml only on push to main and v* tags', function (): void {
@@ -121,12 +124,13 @@ it('serialises split runs per package and ref without cancelling', function (): 
         ->and($concurrency['cancel-in-progress'])->toBeFalse();
 });
 
-it('keeps actions/checkout at v4 with default credentials in split.yml', function (): void {
+it('keeps actions/checkout on a v4 SHA with default credentials in split.yml', function (): void {
     /** @var list<array<string, mixed>> $steps */
     $steps = workflow('split.yml')['jobs']['split']['steps'];
     $text = (string) file_get_contents(dirname(__DIR__, 2).'/.github/workflows/split.yml');
 
-    expect($steps[0]['uses'])->toBe('actions/checkout@v4')
+    expect($steps[0]['uses'])->toBe('actions/checkout@11d5960a326750d5838078e36cf38b85af677262')
+        ->and($text)->toContain('actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.')
         ->and($steps[0]['with']['fetch-depth'])->toBe(0)
         ->and($steps[0]['with'])->not->toHaveKey('persist-credentials')
         ->and($text)->toContain('# Pinned to v4 on purpose (do NOT bump to match the other workflows).');
@@ -165,4 +169,24 @@ it('creates the split release only when missing and without generated notes', fu
         ->and(strpos($release, 'gh release view'))->toBeLessThan(strpos($release, 'gh release create'))
         ->and($release)->toContain('--verify-tag')
         ->and($release)->not->toContain('--generate-notes');
+});
+
+it('marks pre-release tags and fails on view errors other than not found', function (): void {
+    /** @var list<array<string, mixed>> $steps */
+    $steps = workflow('split.yml')['jobs']['split']['steps'];
+    $release = (string) $steps[array_key_last($steps)]['run'];
+
+    expect($release)->toContain('release not found')->and($release)->toContain('--prerelease')->and($release)->toContain('$pre');
+});
+
+it('pins every third-party action to a full commit SHA', function (): void {
+    foreach (workflowFiles() as $file) {
+        preg_match_all('/^\s*(?:-\s+)?uses:\s*(\S+)/m', (string) file_get_contents($file), $matches);
+
+        expect($matches[1])->not->toBeEmpty();
+
+        foreach ($matches[1] as $uses) {
+            expect($uses)->toMatch('/@[0-9a-f]{40}$/');
+        }
+    }
 });

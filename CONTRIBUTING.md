@@ -14,7 +14,7 @@ Both packages are released together with lockstep v* tags: one tag on this repos
 
 Versions stay 0.x until the first live consumer integrates the SDK.
 
-Tags take the form `v<major>.<minor>.<patch>[-<prerelease>]`, enforced by `bin/check-tag`. Each real tag gets a manually published GitHub release on this repository, which updates `CHANGELOG.md`. The split repositories' releases link to it, so the order of tag push and release does not matter. The split repositories ship no changelog of their own.
+Tags take the form `v<major>.<minor>.<patch>[-<prerelease>]`, enforced by `bin/check-tag`. Each real tag gets a manually published GitHub release on this repository. Its `CHANGELOG.md` entry is written by hand in the release pull request, before the tag, so it passes the same required checks as any other change on `main`. The split repositories' releases link to it, so the order of tag push and release does not matter. The split repositories ship no changelog of their own.
 
 ## Split repositories
 
@@ -28,6 +28,6 @@ Every commit that touches `packages/**` is replayed into their public history pe
 
 `actions/checkout` stays at `v4` in `split.yml`: the split action breaks on newer majors, and Dependabot ignores those bumps.
 
-## Known interaction
+## Changelog
 
-`main` is protected with required status checks, which blocks `update-changelog.yml`'s direct push of `CHANGELOG.md`. Resolve this before the first real release, either with a ruleset bypass for the Actions bot or by switching the workflow to open a pull request.
+There is no changelog workflow on purpose. `main` is protected with required status checks, so a workflow could not push `CHANGELOG.md` directly, and a commit or pull request made with `GITHUB_TOKEN` never triggers those checks. Before tagging, add a `## v<version> - <date>` section under `[Unreleased]` in the release pull request.
