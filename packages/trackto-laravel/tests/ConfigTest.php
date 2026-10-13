@@ -234,8 +234,7 @@ it('surfaces the client constructor error for a base URL it rejects', function (
 });
 
 it('keeps the config file serialisable the way config:cache writes it', function (): void {
-    // The real command boots a second skeleton app that needs a rebuilt package manifest, which would rewrite
-    // vendor/ state shared by every test, so write the array the way `config:cache` does and read it back.
+    // In-process check of the file shape; the next test runs the real commands against temp cache paths.
     $config = laravelConfigFromEnv([]);
     $file = tempnam(sys_get_temp_dir(), 'trackto-config-cache-');
 
@@ -253,7 +252,7 @@ it('keeps the config file serialisable the way config:cache writes it', function
     }
 });
 
-it('runs the real config:cache with no key set and leaves the shared skeleton untouched', function (): void {
+it('runs the real package:discover and config:cache with no key set and leaves the shared skeleton untouched', function (): void {
     $root = dirname(__DIR__, 3);
     $skeletonCache = $root.'/vendor/orchestra/testbench-core/laravel/bootstrap/cache';
     $checksums = static fn (): array => array_map(md5_file(...), glob($skeletonCache.'/*') ?: []);
@@ -276,6 +275,7 @@ it('runs the real config:cache with no key set and leaves the shared skeleton un
     };
 
     try {
+        $run('package:discover');
         $run('config:cache');
 
         /** @var array<string, array<string, mixed>> $cached */
