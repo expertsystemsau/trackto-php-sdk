@@ -34,6 +34,14 @@ function run(array $command): array
 }
 
 $violations = [];
+
+// The archive is built from committed HEAD, so local edits and new files are not what gets checked.
+[$statusCode, $status] = run(['git', '-C', $root, 'status', '--porcelain', '--', 'packages']);
+
+if ($statusCode === 0 && trim($status) !== '') {
+    fwrite(STDERR, "warning: uncommitted changes under packages/ are not part of the HEAD archive checked here; commit them to check them.\n");
+}
+
 $manifests = glob($root.'/packages/*/composer.json') ?: [];
 
 if ($manifests === []) {
