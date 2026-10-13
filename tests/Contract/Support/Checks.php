@@ -212,6 +212,15 @@ final class Checks
                 continue;
             }
 
+            if (! isset($nodes[''])) {
+                // An unmapped root is a pure envelope: every property it has must be a mapped path.
+                foreach (array_keys($schema['properties'] ?? []) as $property) {
+                    if (! isset($nodes[$property])) {
+                        $problems[] = "{$operation} {$property} is a root property with no INLINE_RESPONSES entry.";
+                    }
+                }
+            }
+
             foreach ($nodes as $path => $class) {
                 $node = self::descend($schema, (string) $path);
 
@@ -221,10 +230,16 @@ final class Checks
                     continue;
                 }
 
+                if (! isset($node['properties'])) {
+                    $problems[] = "{$operation} {$path} has no checkable properties.";
+
+                    continue;
+                }
+
                 $reflection = new ReflectionClass($class);
                 $parameters = self::parameterNames($reflection);
 
-                foreach ($node['properties'] ?? [] as $property => $child) {
+                foreach ($node['properties'] as $property => $child) {
                     $label = $path === '' ? (string) $property : $path.'.'.$property;
 
                     if (! in_array(lcfirst(str_replace('_', '', ucwords((string) $property, '_'))), $parameters, true)) {
@@ -402,7 +417,7 @@ final class Checks
                 return null;
             }
 
-            if (($node['type'] ?? null) === 'array') {
+            if (self::isArrayType($node)) {
                 $node = $node['items'] ?? null;
 
                 if (! is_array($node)) {
@@ -420,7 +435,17 @@ final class Checks
             return false;
         }
 
-        return isset($property['properties']) || (($property['type'] ?? null) === 'array' && isset($property['items']['properties']));
+        return isset($property['properties']) || (self::isArrayType($property) && isset($property['items']['properties']));
+    }
+
+    /**
+     * JSON Schema `type` is a string or a list (`['array', 'null']` for a nullable array).
+     *
+     * @param  array<string, mixed>  $node
+     */
+    private static function isArrayType(array $node): bool
+    {
+        return in_array('array', (array) ($node['type'] ?? []), true);
     }
 
     private static function root(): string

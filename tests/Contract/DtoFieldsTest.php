@@ -121,3 +121,37 @@ it('does not report a data envelope that references a schema', function (): void
 
     expect(Checks::inlineFields($spec))->toBe([]);
 });
+
+it('reports a property added beside data in the bulk response root', function (): void {
+    $spec = Checks::spec();
+    $spec['paths']['/links/bulk']['post']['responses']['200']['content']['application/json']['schema']['properties']['warnings'] = ['type' => 'array', 'items' => ['type' => 'string']];
+
+    $problems = Checks::inlineFields($spec);
+
+    expect($problems)->toHaveCount(1)->and($problems[0])->toContain('POST /links/bulk', 'warnings', 'root property');
+});
+
+it('reports a property added to the items of a nullable array', function (): void {
+    $spec = inlineSpecWith(function (array $schema): array {
+        $schema['properties']['topReferrers']['type'] = ['array', 'null'];
+        $schema['properties']['topReferrers']['items']['properties']['extra'] = ['type' => 'string'];
+
+        return $schema;
+    });
+
+    $problems = Checks::inlineFields($spec);
+
+    expect($problems)->toHaveCount(1)->and($problems[0])->toContain('extra', 'AnalyticsCountData');
+});
+
+it('reports a mapped node that no longer has checkable properties', function (): void {
+    $spec = inlineSpecWith(function (array $schema): array {
+        $schema['properties']['overTime']['items'] = ['$ref' => '#/components/schemas/Day'];
+
+        return $schema;
+    });
+
+    $problems = Checks::inlineFields($spec);
+
+    expect($problems)->toHaveCount(1)->and($problems[0])->toContain('overTime', 'no checkable properties');
+});
