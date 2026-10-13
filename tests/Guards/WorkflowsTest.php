@@ -170,10 +170,10 @@ it('creates the split release only when missing and without generated notes', fu
         ->and($release)->not->toContain('--generate-notes');
 });
 
-it('marks pre-release tags as pre-releases on the split repos', function (): void {
+it('marks pre-release tags and fails on view errors other than not found', function (): void {
     /** @var list<array<string, mixed>> $steps */
     $steps = workflow('split.yml')['jobs']['split']['steps'];
     $release = (string) $steps[array_key_last($steps)]['run'];
 
-    expect($release)->toContain('--prerelease')->and($release)->toContain('$pre');
+    expect($release)->toContain('release not found')->and($release)->toContain('--prerelease')->and($release)->toContain('$pre');
 });

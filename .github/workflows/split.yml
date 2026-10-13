@@ -55,10 +55,15 @@ jobs:
           TARGET: ${{ matrix.package.target }}
           MONO: ${{ github.repository }}
         run: |
-          if gh release view "$TAG" --repo "$TARGET" >/dev/null 2>&1; then
+          if out=$(gh release view "$TAG" --repo "$TARGET" 2>&1); then
             echo "Release $TAG already exists on $TARGET; leaving it untouched."
             exit 0
           fi
+          # Only "not found" means missing; auth, rate-limit and network errors must fail here.
+          case "$out" in
+            *"release not found"*) ;;
+            *) echo "::error::gh release view failed: $out"; exit 1 ;;
+          esac
           # check-tag guarantees a "-" only introduces a pre-release part.
           pre=""
           case "$TAG" in *-*) pre="--prerelease" ;; esac
