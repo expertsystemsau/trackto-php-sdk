@@ -59,5 +59,8 @@ jobs:
             echo "Release $TAG already exists on $TARGET; leaving it untouched."
             exit 0
           fi
-          gh release create "$TAG" --repo "$TARGET" --verify-tag --title "$TAG" \
+          # check-tag guarantees a "-" only introduces a pre-release part.
+          pre=""
+          case "$TAG" in *-*) pre="--prerelease" ;; esac
+          gh release create "$TAG" --repo "$TARGET" --verify-tag $pre --title "$TAG" \
             --notes "Release $TAG. Monorepo: https://github.com/$MONO/releases/tag/$TAG. Changelog: https://github.com/$MONO/blob/main/CHANGELOG.md"
