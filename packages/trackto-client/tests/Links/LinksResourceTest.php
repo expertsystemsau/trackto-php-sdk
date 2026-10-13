@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ExpertSystems\TrackTo\Enums\LinkSort;
+use ExpertSystems\TrackTo\Exceptions\ConfigurationException;
 use ExpertSystems\TrackTo\Exceptions\UnexpectedResponseException;
 use ExpertSystems\TrackTo\Exceptions\ValidationException;
 use ExpertSystems\TrackTo\Resources\LinksResource;
@@ -152,4 +153,20 @@ it('pins the public parameter names of create() and list()', function (): void {
 
     expect($names('create'))->toBe(['destinationUrl', 'slug', 'expiresAt', 'password', 'folderId', 'tags'])
         ->and($names('list'))->toBe(['search', 'folderId', 'tag', 'sort', 'perPage', 'page']);
+});
+
+it('raises a ConfigurationException, not a JsonException, for a body field that is not valid UTF-8', function (): void {
+    $client = TestClient::make(new MockClient([MockResponse::make(['data' => Fixtures::link()], 201)]));
+
+    try {
+        $client->links()->create(destinationUrl: "https://example.com/\xB1\xB1");
+    } catch (Throwable $e) {
+        expect($e)->toBeInstanceOf(ConfigurationException::class)
+            ->and($e->getMessage())->not->toContain('example.com')
+            ->and($e->getPrevious())->toBeNull();
+
+        return;
+    }
+
+    $this->fail('No exception thrown.');
 });

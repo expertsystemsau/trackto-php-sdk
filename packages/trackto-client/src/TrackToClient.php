@@ -8,10 +8,13 @@ use Composer\InstalledVersions;
 use ExpertSystems\TrackTo\Exceptions\ConfigurationException;
 use ExpertSystems\TrackTo\Exceptions\ConnectionException;
 use ExpertSystems\TrackTo\Exceptions\ErrorMapper;
+use ExpertSystems\TrackTo\Exceptions\TrackToException;
 use ExpertSystems\TrackTo\Resources\LinksResource;
 use ExpertSystems\TrackTo\Support\RateLimitInfo;
 use ExpertSystems\TrackTo\Support\Sleeper;
 use ExpertSystems\TrackTo\Support\UsleepSleeper;
+use InvalidArgumentException;
+use JsonException;
 use LogicException;
 use OutOfBoundsException;
 use Saloon\Contracts\ArrayStore as ArrayStoreContract;
@@ -105,7 +108,11 @@ final class TrackToClient extends Connector
      *
      * @param  callable(Throwable, Request): bool|null  $handleRetry
      *
+     * A request that cannot be built (invalid UTF-8 in a body field, say) raises ConfigurationException with a
+     * fixed message, so no caller input is echoed and nothing escapes the TrackToException contract.
+     *
      * @throws ConnectionException
+     * @throws ConfigurationException
      */
     public function send(Request $request, ?MockClient $mockClient = null, ?callable $handleRetry = null): Response
     {
@@ -113,6 +120,8 @@ final class TrackToClient extends Connector
             return parent::send($request, $mockClient, $handleRetry);
         } catch (FatalRequestException $e) {
             throw new ConnectionException($e->getMessage(), (int) $e->getCode());
+        } catch (JsonException|InvalidArgumentException $e) {
+            throw $e instanceof TrackToException ? $e : new ConfigurationException('The request could not be built from the given arguments.');
         }
     }
 

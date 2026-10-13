@@ -115,7 +115,7 @@ Three exceptions are not API errors:
 
 - `ConnectionException`: the request never got a response (DNS, refused connection, timeout).
 - `UnexpectedResponseException`: a response arrived but its body is unusable, such as an HTML error page or a 3xx. It carries the status.
-- `ConfigurationException`: the client was built with a blank key, an insecure base URL, an invalid timeout, a version or suffix containing control characters, or an invalid retry setting.
+- `ConfigurationException`: the client was built with a blank key, an insecure base URL, an invalid timeout, a version or suffix containing control characters, an invalid retry setting, or a request that cannot be built, such as invalid UTF-8 in a body field.
 
 API exceptions expose:
 
