@@ -42,7 +42,11 @@ it('sends the contract headers on every operation', function (Closure $operation
         ->and($pending?->getUri()->getHost())->toBe('api.track.to')
         ->and($pending?->getUri()->getPath())->toBe($path)
         ->and($pending?->headers()->get('Authorization'))->toBe('Bearer '.TestClient::API_KEY)
-        ->and($pending?->headers()->get('User-Agent'))->toMatch('#^trackto-php/\S+ php/\d+\.\d+\.\d+$#')
+        ->and($pending?->headers()->get('User-Agent'))->toMatch('#^trackto-php/\S+ php/\S+$#')
         ->and($pending?->headers()->get('Track-Version'))->toBe('2026-07-06')
         ->and($pending?->headers()->get('Accept'))->toBe('application/json');
 })->with('operations');
+
+it('matches the User-Agent pattern for release-candidate and dev PHP versions', function (string $agent): void {
+    expect($agent)->toMatch('#^trackto-php/\S+ php/\S+$#');
+})->with(['release candidate' => 'trackto-php/1.0.0 php/8.5.0RC1', 'dev build' => 'trackto-php/dev php/8.4.12-dev']);

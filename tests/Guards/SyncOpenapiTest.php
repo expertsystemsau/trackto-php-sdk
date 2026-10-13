@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 use Symfony\Component\Process\Process;
 
-/** @var list<string> $syncDirs */
-$syncDirs = [];
-
 function syncDir(): string
 {
     $dir = sys_get_temp_dir().'/trackto-sync-'.bin2hex(random_bytes(6));
@@ -96,3 +93,26 @@ it('prints usage for an unknown argument', function (): void {
 
     expect($code)->toBe(1)->and($output)->toContain('Usage: sync-openapi');
 });
+
+it('creates spec/ as 0755 whatever the umask, and keeps it on a second sync', function (int $umask): void {
+    $dir = syncDir();
+    $source = $dir.'/openapi.json';
+    file_put_contents($source, '{"openapi": "3.1.0", "info": {"version": "2026-07-06"}}');
+    $root = $dir.'/root';
+
+    $previous = umask($umask);
+
+    try {
+        [$first] = runSync(['--source='.$source, '--root='.$root]);
+    } finally {
+        umask($previous);
+    }
+
+    clearstatcache();
+    expect($first)->toBe(0)->and(fileperms($root.'/spec') & 0o777)->toBe(0o755);
+
+    [$second] = runSync(['--source='.$source, '--root='.$root]);
+
+    clearstatcache();
+    expect($second)->toBe(0)->and(fileperms($root.'/spec') & 0o777)->toBe(0o755);
+})->with(['umask 000' => 0o000, 'umask 022' => 0o022]);

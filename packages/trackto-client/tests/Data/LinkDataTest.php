@@ -76,6 +76,25 @@ it('reads an optional date it cannot parse as null, never as now or a relative d
     expect($link->expiresAt)->toBeNull()->and($link->createdAt)->toBeNull();
 })->with(['empty' => '', 'blank' => '  ', 'relative' => '+1 day', 'word' => 'tomorrow', 'garbage' => 'not a date', 'date only' => '2026-12-01', 'number' => 12345, 'impossible' => '2026-13-45T99:00:00Z']);
 
+it('reads a calendar overflow or a trailing newline as null', function (string $value): void {
+    $link = LinkData::fromArray(Fixtures::link(['expires_at' => $value, 'created_at' => $value]));
+
+    expect($link->expiresAt)->toBeNull()->and($link->createdAt)->toBeNull();
+})->with([
+    'feb 31' => '2026-02-31T00:00:00Z',
+    'apr 31' => '2026-04-31T10:00:00Z',
+    'trailing newline' => "2026-12-01T09:30:00Z\n",
+]);
+
+it('still parses fractional, offset and lower-case z forms', function (string $value): void {
+    expect(LinkData::fromArray(Fixtures::link(['expires_at' => $value]))->expiresAt)->toBeInstanceOf(DateTimeImmutable::class);
+})->with([
+    'fraction' => '2026-12-01T09:30:00.123456Z',
+    'colon offset' => '2026-12-01T09:30:00+10:00',
+    'compact offset' => '2026-12-01T09:30:00+1000',
+    'lower z' => '2026-12-01T09:30:00z',
+]);
+
 it('accepts Z and fractional-second timestamps', function (): void {
     $link = LinkData::fromArray(Fixtures::link(['expires_at' => '2026-12-01T09:30:00.123456Z']));
 

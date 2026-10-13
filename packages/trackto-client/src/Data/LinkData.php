@@ -93,15 +93,20 @@ final readonly class LinkData
      */
     private static function date(mixed $value): ?DateTimeImmutable
     {
-        if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})$/i', $value) !== 1) {
+        if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})\z/i', $value) !== 1) {
             return null;
         }
 
         try {
-            return new DateTimeImmutable($value);
+            $date = new DateTimeImmutable($value);
         } catch (Exception) {
             return null;
         }
+
+        // Calendar overflow such as Feb 31 only warns. getLastErrors() is false when parsing was clean (PHP >= 8.2).
+        $errors = DateTimeImmutable::getLastErrors();
+
+        return $errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0) ? null : $date;
     }
 
     /**
