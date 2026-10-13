@@ -7,6 +7,7 @@ use ExpertSystems\TrackTo\Exceptions\ConnectionException;
 use ExpertSystems\TrackTo\Exceptions\ErrorMapper;
 use ExpertSystems\TrackTo\Exceptions\TrackToException;
 use ExpertSystems\TrackTo\Exceptions\UnexpectedResponseException;
+use ExpertSystems\TrackTo\Laravel\Facades\TrackTo;
 use ExpertSystems\TrackTo\Resources\FoldersResource;
 use ExpertSystems\TrackTo\Resources\LinksResource;
 use ExpertSystems\TrackTo\Resources\TagsResource;
@@ -73,6 +74,7 @@ it('has every section in order', function (): void {
         'Retry',
         'Timeouts and transport',
         'Testing',
+        'Laravel',
         'Security notes',
         'Contract harness',
     ]);
@@ -195,4 +197,42 @@ it('states that a 429 reset timing is honoured only when the RateLimit header sh
     expect(conventionsDoc())->toContain('`RateLimit` header showing no budget left')
         ->and(RateLimitInfo::fromHeaders(['RateLimit' => '"default";r=3;t=1'])->retryAfter)->toBeNull()
         ->and(RateLimitInfo::fromHeaders(['RateLimit' => '"default";r=0;t=1'])->retryAfter)->toBe(1);
+});
+
+it('pins the Laravel fake() signature the facade ships', function (): void {
+    $fake = new ReflectionMethod(TrackTo::class, 'fake');
+    $parameter = $fake->getParameters()[0];
+    $return = $fake->getReturnType();
+
+    expect($return)->toBeInstanceOf(ReflectionNamedType::class)
+        ->and(conventionsDoc())->toContain(sprintf(
+            'public static function fake(%s $%s = %s): %s',
+            $parameter->getType(),
+            $parameter->getName(),
+            $parameter->getDefaultValue() === [] ? '[]' : var_export($parameter->getDefaultValue(), true),
+            (new ReflectionClass($return instanceof ReflectionNamedType ? $return->getName() : ''))->getShortName(),
+        ));
+});
+
+it('names every Laravel config key', function (): void {
+    /** @var array<string, mixed> $config */
+    $config = require dirname(__DIR__).'/packages/trackto-laravel/config/trackto.php';
+
+    expect($config)->not->toBeEmpty();
+
+    foreach (array_keys($config) as $key) {
+        expect(conventionsDoc())->toContain('`'.$key.'`');
+    }
+});
+
+it('keeps the Laravel README promises', function (): void {
+    $readme = (string) file_get_contents(dirname(__DIR__).'/packages/trackto-laravel/README.md');
+
+    foreach ([
+        'vendor:publish --tag=trackto-config',
+        'TRACKTO_API_KEY', 'TRACKTO_BASE_URL', 'TRACKTO_API_VERSION', 'TRACKTO_CONNECT_TIMEOUT', 'TRACKTO_TIMEOUT', 'TRACKTO_USER_AGENT_SUFFIX',
+        'withApiKey(', 'TrackTo::fake(', 'assertSent(', 'trackto:ping', 'trackto:shorten', 'octane.warm', 'authenticate()', 'saloonphp/laravel-plugin',
+    ] as $promise) {
+        expect($readme)->toContain($promise);
+    }
 });
