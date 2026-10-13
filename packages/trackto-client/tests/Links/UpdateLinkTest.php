@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use ExpertSystems\TrackTo\Data\LinkData;
+use ExpertSystems\TrackTo\Exceptions\InvalidArgumentException;
 use ExpertSystems\TrackTo\Exceptions\ServerException;
+use ExpertSystems\TrackTo\Exceptions\TrackToException;
 use ExpertSystems\TrackTo\Exceptions\ValidationException;
 use ExpertSystems\TrackTo\Resources\LinksResource;
 use ExpertSystems\TrackTo\Support\Omitted;
@@ -124,3 +126,53 @@ it('pins the public parameter names and order of update()', function (): void {
 
     expect($names)->toBe(['slug', 'destinationUrl', 'newSlug', 'expiresAt', 'folderId', 'tags', 'password', 'removePassword']);
 });
+
+it('refuses a password together with removePassword before sending anything', function (?string $password): void {
+    $mock = new MockClient([MockResponse::make(['data' => Fixtures::link()], 200)]);
+
+    try {
+        TestClient::make($mock)->links()->update(slug: 'abc123', destinationUrl: UPDATE_URL, password: $password, removePassword: true);
+    } catch (InvalidArgumentException $e) {
+        expect($e)->toBeInstanceOf(\InvalidArgumentException::class)
+            ->and($e)->toBeInstanceOf(TrackToException::class)
+            ->and($e->getMessage())->toBe('Pass either a password or removePassword: true, not both.');
+        $mock->assertNothingSent();
+
+        return;
+    }
+
+    throw new RuntimeException('Expected InvalidArgumentException.');
+})->with(['password' => ['secret-pass-1'], 'empty password' => ['']]);
+
+it('keeps the password out of the conflict message', function (): void {
+    try {
+        updateBody(['password' => 'secret-pass-1', 'removePassword' => true]);
+    } catch (InvalidArgumentException $e) {
+        expect($e->getMessage())->not->toContain('secret-pass-1');
+
+        return;
+    }
+
+    throw new RuntimeException('Expected InvalidArgumentException.');
+});
+
+it('sends a numeric-looking slug as a path segment and as a JSON string', function (): void {
+    $body = updateBody(['slug' => '007', 'newSlug' => '007'], $mock);
+
+    expect($mock->getLastPendingRequest()?->getUri()->getPath())->toBe('/links/007')
+        ->and((string) $mock->getLastPendingRequest()?->body())->toContain('"slug":"007"')
+        ->and($body['slug'])->toBe('007');
+});
+
+it('sends tag names in caller order and an associative array as a list', function (): void {
+    expect(updateBody(['tags' => ['zeta', 'alpha']])['tags'])->toBe(['zeta', 'alpha'])
+        ->and(updateBody(['tags' => ['x' => 'zeta', 'y' => 'alpha']], $mock)['tags'])->toBe(['zeta', 'alpha'])
+        ->and((string) $mock->getLastPendingRequest()?->body())->toContain('"tags":["zeta","alpha"]');
+});
+
+it('formats expiry as DATE_ATOM with its own offset and drops microseconds', function (DateTimeInterface $expiresAt, string $expected): void {
+    expect(updateBody(['expiresAt' => $expiresAt])['expires_at'])->toBe($expected);
+})->with([
+    'sydney with microseconds' => [new DateTimeImmutable('2026-12-01 09:30:00.123456', new DateTimeZone('Australia/Sydney')), '2026-12-01T09:30:00+11:00'],
+    'mutable utc' => [new DateTime('2026-12-01 09:30:00', new DateTimeZone('UTC')), '2026-12-01T09:30:00+00:00'],
+]);

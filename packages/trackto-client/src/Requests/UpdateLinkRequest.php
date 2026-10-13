@@ -6,6 +6,7 @@ namespace ExpertSystems\TrackTo\Requests;
 
 use DateTimeInterface;
 use ExpertSystems\TrackTo\Data\LinkData;
+use ExpertSystems\TrackTo\Exceptions\InvalidArgumentException;
 use ExpertSystems\TrackTo\Support\Omitted;
 use ExpertSystems\TrackTo\Support\SlugPath;
 use Saloon\Contracts\Body\HasBody;
@@ -35,6 +36,11 @@ final class UpdateLinkRequest extends TrackToRequest implements HasBody
         #[SensitiveParameter] private readonly ?string $password = null,
         private readonly bool $removePassword = false,
     ) {
+        // Any non-null password counts, '' included; the message never carries it.
+        if ($password !== null && $removePassword) {
+            throw new InvalidArgumentException('Pass either a password or removePassword: true, not both.');
+        }
+
         $this->segment = SlugPath::encode($slug);
     }
 
