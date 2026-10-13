@@ -20,6 +20,10 @@ use SensitiveParameterValue;
 /**
  * track.to API connector. All state lives in private properties: headers() and config()
  * are rebuilt on every call so a clone never inherits a memoised store from its source.
+ *
+ * The with*() methods are the supported way to change a client. Inherited Saloon mutators
+ * (authenticate(), withTokenAuth(), middleware(), debug(), the public $tries property) still
+ * change the instance in place.
  */
 final class TrackToClient extends Connector
 {
@@ -62,6 +66,57 @@ final class TrackToClient extends Connector
     {
         $copy = clone $this;
         $copy->mockClient = $mockClient;
+
+        return $copy;
+    }
+
+    public function withApiKey(#[SensitiveParameter] string $apiKey): static
+    {
+        $copy = clone $this;
+        $copy->apiKey = new SensitiveParameterValue($apiKey);
+
+        return $copy;
+    }
+
+    public function withBaseUrl(string $baseUrl): static
+    {
+        $copy = clone $this;
+        $copy->baseUrl = $baseUrl;
+
+        return $copy;
+    }
+
+    /**
+     * A null version omits the Track-Version header.
+     */
+    public function withVersion(?string $version): static
+    {
+        $copy = clone $this;
+        $copy->version = $version;
+
+        return $copy;
+    }
+
+    public function withConnectTimeout(float $seconds): static
+    {
+        $copy = clone $this;
+        $copy->connectTimeout = $seconds;
+
+        return $copy;
+    }
+
+    public function withTimeout(float $seconds): static
+    {
+        $copy = clone $this;
+        $copy->timeout = $seconds;
+
+        return $copy;
+    }
+
+    public function withUserAgentSuffix(?string $suffix): static
+    {
+        $copy = clone $this;
+        $copy->userAgentSuffix = $suffix;
 
         return $copy;
     }
