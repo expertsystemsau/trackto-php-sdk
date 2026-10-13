@@ -7,6 +7,7 @@ namespace ExpertSystems\TrackTo\Requests;
 use ExpertSystems\TrackTo\Data\BulkResultData;
 use ExpertSystems\TrackTo\Enums\BulkAction;
 use ExpertSystems\TrackTo\Exceptions\InvalidArgumentException;
+use ExpertSystems\TrackTo\Support\Omitted;
 use Saloon\Contracts\Body\HasBody;
 use Saloon\Enums\Method;
 use Saloon\Http\Response;
@@ -31,11 +32,15 @@ final class BulkLinksRequest extends TrackToRequest implements HasBody
     public function __construct(
         private readonly BulkAction $action,
         private readonly array $slugs,
-        private readonly ?int $folderId = null,
+        private readonly int|Omitted|null $folderId = Omitted::Value,
         private readonly array $tags = [],
     ) {
         if (count($slugs) < 1 || count($slugs) > 100) {
             throw new InvalidArgumentException('Bulk actions take between 1 and 100 slugs.');
+        }
+
+        if ($action === BulkAction::Move && $folderId === Omitted::Value) {
+            throw new InvalidArgumentException('A bulk move needs a folder id; pass null to unfile the links.');
         }
 
         if ($action === BulkAction::Unknown) {
@@ -58,7 +63,7 @@ final class BulkLinksRequest extends TrackToRequest implements HasBody
         $body = ['action' => $this->action->value, 'slugs' => array_values($this->slugs)];
 
         return match ($this->action) {
-            BulkAction::Move => $body + ['folder_id' => $this->folderId],
+            BulkAction::Move => $body + ['folder_id' => $this->folderId === Omitted::Value ? null : $this->folderId],
             BulkAction::Tag => $body + ['tags' => array_values($this->tags)],
             default => $body,
         };

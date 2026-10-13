@@ -185,3 +185,8 @@ it('refuses to build a request for the Unknown action', function (): void {
 it('declares a single attempt on the request', function (): void {
     expect((new BulkLinksRequest(BulkAction::Delete, ['a']))->tries)->toBe(1);
 });
+
+it('refuses a direct Move request with no folder id instead of unfiling the links', function (): void {
+    expect(fn () => new BulkLinksRequest(BulkAction::Move, ['a']))->toThrow(InvalidArgumentException::class, 'folder id')
+        ->and(fn () => new BulkLinksRequest(BulkAction::Move, ['a'], folderId: null))->not->toThrow(InvalidArgumentException::class);
+});
