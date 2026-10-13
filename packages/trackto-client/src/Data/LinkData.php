@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExpertSystems\TrackTo\Data;
 
 use DateTimeImmutable;
+use Exception;
 use ExpertSystems\TrackTo\Enums\LinkStatus;
 use UnexpectedValueException;
 
@@ -74,7 +75,7 @@ final readonly class LinkData
             $shortUrl,
             self::date($data['expires_at'] ?? null),
             self::date($data['created_at'] ?? null),
-            is_array($folder) ? FolderData::fromArray($folder) : null,
+            self::folder($folder),
             self::tags($tags),
             $hasPassword,
             LinkStatus::fromApi($data['status'] ?? null),
@@ -87,9 +88,32 @@ final readonly class LinkData
         throw new UnexpectedValueException("Link field [{$field}] is missing or has the wrong type.");
     }
 
+    /**
+     * Only an RFC 3339 timestamp parses; anything else is null, never a relative or "now" date.
+     */
     private static function date(mixed $value): ?DateTimeImmutable
     {
-        return is_string($value) ? new DateTimeImmutable($value) : null;
+        if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})$/i', $value) !== 1) {
+            return null;
+        }
+
+        try {
+            return new DateTimeImmutable($value);
+        } catch (Exception) {
+            return null;
+        }
+    }
+
+    /**
+     * An optional folder that is malformed is dropped rather than failing the whole page.
+     */
+    private static function folder(mixed $folder): ?FolderData
+    {
+        try {
+            return is_array($folder) ? FolderData::fromArray($folder) : null;
+        } catch (UnexpectedValueException) {
+            return null;
+        }
     }
 
     /**
@@ -100,8 +124,12 @@ final readonly class LinkData
         $result = [];
 
         foreach (is_array($tags) ? $tags : [] as $tag) {
-            if (is_array($tag)) {
-                $result[] = TagData::fromArray($tag);
+            try {
+                if (is_array($tag)) {
+                    $result[] = TagData::fromArray($tag);
+                }
+            } catch (UnexpectedValueException) {
+                // A malformed tag is skipped, like a tag that is not an object.
             }
         }
 

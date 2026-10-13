@@ -67,6 +67,28 @@ it('raises UnexpectedResponseException for a 2xx body that cannot hydrate', func
     'data not an object' => '{"data": "x"}',
     'missing slug' => fn () => json_encode(['data' => array_diff_key(Fixtures::link(), ['slug' => 1])]),
     'string id' => fn () => json_encode(['data' => Fixtures::link(['id' => '1'])]),
-    'bad date' => fn () => json_encode(['data' => Fixtures::link(['created_at' => 'not a date'])]),
     'html' => '<html><body>Hi</body></html>',
 ]);
+
+it('reads an optional date it cannot parse as null, never as now or a relative date', function (mixed $value): void {
+    $link = LinkData::fromArray(Fixtures::link(['expires_at' => $value, 'created_at' => $value]));
+
+    expect($link->expiresAt)->toBeNull()->and($link->createdAt)->toBeNull();
+})->with(['empty' => '', 'blank' => '  ', 'relative' => '+1 day', 'word' => 'tomorrow', 'garbage' => 'not a date', 'date only' => '2026-12-01', 'number' => 12345, 'impossible' => '2026-13-45T99:00:00Z']);
+
+it('accepts Z and fractional-second timestamps', function (): void {
+    $link = LinkData::fromArray(Fixtures::link(['expires_at' => '2026-12-01T09:30:00.123456Z']));
+
+    expect($link->expiresAt?->format('Y-m-d H:i'))->toBe('2026-12-01 09:30');
+});
+
+it('drops a malformed optional folder or tag instead of failing the link', function (): void {
+    $link = LinkData::fromArray(Fixtures::link([
+        'folder' => ['id' => 2],
+        'tags' => [['id' => 1, 'name' => 'ok', 'color' => '#fff'], ['id' => 'x'], 'junk'],
+    ]));
+
+    expect($link->folder)->toBeNull()
+        ->and($link->tags)->toHaveCount(1)
+        ->and($link->tags[0]->name)->toBe('ok');
+});
