@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use ExpertSystems\TrackTo\Data\AnalyticsDayData;
 use ExpertSystems\TrackTo\Data\LinkAnalyticsData;
+use ExpertSystems\TrackTo\Exceptions\UnexpectedResponseException;
 use ExpertSystems\TrackTo\Testing\Fixtures;
 use ExpertSystems\TrackTo\Tests\Support\TestClient;
 use Saloon\Http\Faking\MockClient;
@@ -26,3 +27,29 @@ it('returns typed analytics read from the unwrapped body, in API order', functio
         ->and($pending?->getUri()->getPath())->toBe('/links/007/analytics');
     $mock->assertSentCount(1);
 });
+
+it('raises UnexpectedResponseException for a malformed analytics body after one request', function (array $body): void {
+    $mock = new MockClient([MockResponse::make($body, 200)]);
+
+    expect(fn () => TestClient::make($mock)->links()->analytics('x'))->toThrow(UnexpectedResponseException::class);
+    $mock->assertSentCount(1);
+})->with([
+    'wrapped in data' => fn (): array => ['data' => Fixtures::analytics()],
+    'missing total' => function (): array {
+        $body = Fixtures::analytics();
+        unset($body['total']);
+
+        return $body;
+    },
+]);
+
+it('percent-encodes the slug into a single analytics path segment', function (string $slug, string $path): void {
+    $mock = new MockClient([MockResponse::make(Fixtures::analytics(), 200)]);
+
+    TestClient::make($mock)->links()->analytics($slug);
+
+    expect($mock->getLastPendingRequest()?->getUri()->getPath())->toBe($path);
+})->with([
+    'inner dot' => ['v1.2', '/links/v1%2E2/analytics'],
+    'space and slash' => ['a b/c', '/links/a%20b%2Fc/analytics'],
+]);

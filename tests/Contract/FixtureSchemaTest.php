@@ -44,9 +44,12 @@ it('validates the single-link envelope', function (): void {
     expect(validateAgainstSpec(['data' => Fixtures::link()], SHOW_LINK_SCHEMA))->toBeNull();
 });
 
-it('validates analytics() against the analytics response', function (): void {
-    expect(validateAgainstSpec(Fixtures::analytics(), ANALYTICS_SCHEMA))->toBeNull();
-});
+it('validates analytics() against the analytics response', function (array $body): void {
+    expect(validateAgainstSpec($body, ANALYTICS_SCHEMA))->toBeNull();
+})->with([
+    'default' => fn (): array => Fixtures::analytics(),
+    'all empty' => fn (): array => Fixtures::analytics(['total' => 0, 'overTime' => [], 'topReferrers' => [], 'topCountries' => []]),
+]);
 
 it('validates page() shapes against the list response', function (array $page): void {
     expect(validateAgainstSpec($page, LIST_LINKS_SCHEMA))->toBeNull();
@@ -69,5 +72,6 @@ it('validates a validation_error with field errors', function (): void {
 it('rejects an invalid fixture, so the validator is live', function (): void {
     expect(validateAgainstSpec(Fixtures::link(['status' => 'archived']), LINK_SCHEMA))->not->toBeNull()
         ->and(validateAgainstSpec(['data' => Fixtures::link(['status' => 'archived'])], SHOW_LINK_SCHEMA))->not->toBeNull()
-        ->and(validateAgainstSpec(['data' => []], LIST_LINKS_SCHEMA))->not->toBeNull();
+        ->and(validateAgainstSpec(['data' => []], LIST_LINKS_SCHEMA))->not->toBeNull()
+        ->and(validateAgainstSpec(['data' => Fixtures::analytics()], ANALYTICS_SCHEMA))->not->toBeNull();
 });
