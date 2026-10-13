@@ -49,6 +49,38 @@ final class Fixtures
     }
 
     /**
+     * A GET /links 200 body. `total` defaults to the number of links given.
+     *
+     * @param  list<array<string, mixed>>  $links
+     * @return array{data: list<array<string, mixed>>, links: array<string, string|null>, meta: array<string, mixed>}
+     */
+    public static function page(array $links = [], int $currentPage = 1, int $lastPage = 1, int $perPage = 25, ?int $total = null): array
+    {
+        $url = static fn (int $page): string => 'https://api.track.to/links?page='.$page;
+        $count = count($links);
+
+        return [
+            'data' => $links,
+            'links' => [
+                'first' => $url(1),
+                'last' => $url($lastPage),
+                'prev' => $currentPage > 1 ? $url($currentPage - 1) : null,
+                'next' => $currentPage < $lastPage ? $url($currentPage + 1) : null,
+            ],
+            'meta' => [
+                'current_page' => $currentPage,
+                'from' => $count === 0 ? null : ($currentPage - 1) * $perPage + 1,
+                'last_page' => $lastPage,
+                'links' => [],
+                'path' => 'https://api.track.to/links',
+                'per_page' => $perPage,
+                'to' => $count === 0 ? null : ($currentPage - 1) * $perPage + $count,
+                'total' => $total ?? $count,
+            ],
+        ];
+    }
+
+    /**
      * An error envelope body. `errors` is only present when non-empty, as on the server.
      *
      * @param  array<string, list<string>>  $errors
