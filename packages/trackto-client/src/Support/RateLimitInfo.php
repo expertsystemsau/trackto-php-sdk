@@ -26,11 +26,7 @@ final readonly class RateLimitInfo
      */
     public static function fromHeaders(array $headers, ?int $now = null): self
     {
-        $lower = [];
-
-        foreach ($headers as $name => $value) {
-            $lower[strtolower($name)] = is_array($value) ? (string) ($value[0] ?? '') : $value;
-        }
+        $lower = self::lowerCase($headers);
 
         $limit = self::match($lower['ratelimit-policy'] ?? '', '/;\s*q=(\d+)/');
         $remaining = self::match($lower['ratelimit'] ?? '', '/;\s*r=(\d+)/');
@@ -45,6 +41,29 @@ final readonly class RateLimitInfo
     public static function fromResponse(Response $response): self
     {
         return self::fromHeaders($response->headers()->all());
+    }
+
+    /**
+     * Only the Retry-After header, never the RateLimit reset: on a 5xx the reset describes a quota, not an outage.
+     */
+    public static function retryAfterHeader(Response $response): ?int
+    {
+        return self::retryAfter(self::lowerCase($response->headers()->all())['retry-after'] ?? '', null);
+    }
+
+    /**
+     * @param  array<string, string|list<string>>  $headers
+     * @return array<string, string>
+     */
+    private static function lowerCase(array $headers): array
+    {
+        $lower = [];
+
+        foreach ($headers as $name => $value) {
+            $lower[strtolower($name)] = is_array($value) ? (string) ($value[0] ?? '') : $value;
+        }
+
+        return $lower;
     }
 
     private static function match(string $header, string $pattern): ?int

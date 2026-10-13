@@ -109,10 +109,10 @@ final class TrackToClient extends Connector
      * Converts a transport failure after Saloon's retry loop, so a retry hook still sees the original.
      * No previous exception: Guzzle's holds the PSR request and its Authorization header.
      *
-     * @param  callable(Throwable, Request): bool|null  $handleRetry
-     *
      * A request that cannot be built (invalid UTF-8 in a body field, say) raises ConfigurationException with a
      * fixed message, so no caller input is echoed and nothing escapes the TrackToException contract.
+     *
+     * @param  callable(Throwable, Request): bool|null  $handleRetry
      *
      * @throws ConnectionException
      * @throws ConfigurationException
@@ -156,8 +156,9 @@ final class TrackToClient extends Connector
 
     /**
      * A timed 429 within the cap retries for any method (the request was not processed). Reads also retry
-     * a 5xx or a lost connection after a short backoff. A write is never re-sent after those, and no other
-     * status retries. A wait above the cap means no retry, never "sleep the cap".
+     * a 5xx or a lost connection: a 5xx waits its Retry-After when present and within the cap, otherwise a
+     * short backoff. A write is never re-sent after those, and no other status retries. A wait above the
+     * cap means no retry, never "sleep the cap".
      */
     public function handleRetry(FatalRequestException|RequestException $exception, Request $request): bool
     {
@@ -183,6 +184,18 @@ final class TrackToClient extends Connector
 
         if ($request->getMethod() !== Method::GET) {
             return false;
+        }
+
+        $wait = $exception instanceof RequestException ? RateLimitInfo::retryAfterHeader($exception->getResponse()) : null;
+
+        if ($wait !== null) {
+            if ($wait > $this->maxWait) {
+                return false;
+            }
+
+            $this->sleeper->sleep((float) $wait);
+
+            return true;
         }
 
         $this->sleeper->sleep(min(self::READ_BACKOFF, $this->maxWait));
@@ -252,6 +265,8 @@ final class TrackToClient extends Connector
     {
         $copy = clone $this;
         $copy->apiKey = self::wrapApiKey($apiKey);
+        // authenticate() would otherwise keep sending the replaced key.
+        $copy->authenticator = null;
 
         return $copy;
     }
