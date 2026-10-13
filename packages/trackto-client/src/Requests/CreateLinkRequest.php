@@ -23,7 +23,7 @@ final class CreateLinkRequest extends TrackToRequest implements HasBody
     private readonly ?SensitiveParameterValue $password;
 
     /**
-     * @param  list<string>|null  $tags  Tag names
+     * @param  array<array-key, string>|null  $tags  Tag names; keys are dropped so the body is always a JSON list
      */
     public function __construct(
         private readonly string $destinationUrl,
@@ -54,7 +54,7 @@ final class CreateLinkRequest extends TrackToRequest implements HasBody
             'expires_at' => $this->expiresAt?->format(DATE_ATOM),
             'password' => $this->password?->getValue(),
             'folder_id' => $this->folderId,
-            'tags' => $this->tags,
+            'tags' => $this->tags === null ? null : array_values($this->tags),
         ], static fn (mixed $value): bool => $value !== null);
     }
 
