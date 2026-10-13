@@ -15,6 +15,8 @@ use ExpertSystems\TrackTo\Requests\DeleteLinkRequest;
 use ExpertSystems\TrackTo\Requests\GetLinkAnalyticsRequest;
 use ExpertSystems\TrackTo\Requests\GetLinkRequest;
 use ExpertSystems\TrackTo\Requests\ListLinksRequest;
+use ExpertSystems\TrackTo\Requests\UpdateLinkRequest;
+use ExpertSystems\TrackTo\Support\Omitted;
 use ExpertSystems\TrackTo\TrackToClient;
 use SensitiveParameter;
 
@@ -77,6 +79,26 @@ final class LinksResource
         ?array $tags = null,
     ): LinkData {
         $request = new CreateLinkRequest($destinationUrl, $slug, $expiresAt, $password, $folderId, $tags);
+
+        return $request->createDtoFromResponse($this->client->send($request));
+    }
+
+    /**
+     * Updates a link. An omitted argument is left unchanged and `null` clears it; only removePassword clears a password.
+     *
+     * @param  list<string>|Omitted  $tags  Tag names; [] removes all, null is not accepted
+     */
+    public function update(
+        string $slug,
+        string $destinationUrl,
+        string|Omitted $newSlug = Omitted::Value,
+        DateTimeInterface|Omitted|null $expiresAt = Omitted::Value,
+        int|Omitted|null $folderId = Omitted::Value,
+        array|Omitted $tags = Omitted::Value,
+        #[SensitiveParameter] ?string $password = null,
+        bool $removePassword = false,
+    ): LinkData {
+        $request = new UpdateLinkRequest($slug, $destinationUrl, $newSlug, $expiresAt, $folderId, $tags, $password, $removePassword);
 
         return $request->createDtoFromResponse($this->client->send($request));
     }
