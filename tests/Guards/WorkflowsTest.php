@@ -93,6 +93,14 @@ it('updates the changelog only on a released release', function (): void {
     expect(workflow('update-changelog.yml')['on']['release']['types'])->toBe(['released']);
 });
 
+it('titles changelog entries with the release tag, which a release always has', function (): void {
+    $steps = workflow('update-changelog.yml')['jobs']['update']['steps'];
+    $updater = array_values(array_filter($steps, fn (array $step): bool => isset($step['with']['latest-version'])));
+
+    expect($updater)->toHaveCount(1)
+        ->and($updater[0]['with']['latest-version'])->toBe('${{ github.event.release.tag_name }}');
+});
+
 it('triggers split.yml only on push to main and v* tags', function (): void {
     $on = (array) workflow('split.yml')['on'];
 
