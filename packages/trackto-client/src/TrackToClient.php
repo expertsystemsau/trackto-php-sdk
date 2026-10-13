@@ -6,14 +6,17 @@ namespace ExpertSystems\TrackTo;
 
 use Composer\InstalledVersions;
 use ExpertSystems\TrackTo\Exceptions\ConfigurationException;
+use ExpertSystems\TrackTo\Exceptions\ConnectionException;
 use ExpertSystems\TrackTo\Exceptions\ErrorMapper;
 use ExpertSystems\TrackTo\Resources\LinksResource;
 use LogicException;
 use OutOfBoundsException;
 use Saloon\Contracts\ArrayStore as ArrayStoreContract;
+use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Http\Auth\TokenAuthenticator;
 use Saloon\Http\Connector;
 use Saloon\Http\Faking\MockClient;
+use Saloon\Http\Request;
 use Saloon\Http\Response;
 use Saloon\Repositories\ArrayStore;
 use Saloon\Traits\Plugins\AcceptsJson;
@@ -74,6 +77,23 @@ final class TrackToClient extends Connector
     public function getRequestException(Response $response, ?Throwable $senderException): Throwable
     {
         return ErrorMapper::map($response);
+    }
+
+    /**
+     * Converts a transport failure after Saloon's retry loop, so a retry hook still sees the original.
+     * No previous exception: Guzzle's holds the PSR request and its Authorization header.
+     *
+     * @param  callable(Throwable, Request): bool|null  $handleRetry
+     *
+     * @throws ConnectionException
+     */
+    public function send(Request $request, ?MockClient $mockClient = null, ?callable $handleRetry = null): Response
+    {
+        try {
+            return parent::send($request, $mockClient, $handleRetry);
+        } catch (FatalRequestException $e) {
+            throw new ConnectionException($e->getMessage(), (int) $e->getCode());
+        }
     }
 
     public function links(): LinksResource

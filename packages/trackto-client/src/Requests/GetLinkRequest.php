@@ -26,6 +26,6 @@ final class GetLinkRequest extends TrackToRequest
 
     public function createDtoFromResponse(Response $response): LinkData
     {
-        return LinkData::fromArray($this->payload($response));
+        return $this->hydrate($response, fn (): LinkData => LinkData::fromArray($this->payload($response)));
     }
 }

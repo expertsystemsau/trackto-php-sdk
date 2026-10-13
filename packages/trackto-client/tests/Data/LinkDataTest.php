@@ -6,7 +6,10 @@ use ExpertSystems\TrackTo\Data\FolderData;
 use ExpertSystems\TrackTo\Data\LinkData;
 use ExpertSystems\TrackTo\Data\TagData;
 use ExpertSystems\TrackTo\Enums\LinkStatus;
+use ExpertSystems\TrackTo\Exceptions\UnexpectedResponseException;
 use ExpertSystems\TrackTo\Testing\Fixtures;
+use ExpertSystems\TrackTo\Tests\Support\TestClient;
+use Saloon\Http\Faking\MockResponse;
 
 it('hydrates an unrecognised status as Unknown', function (mixed $status): void {
     expect(LinkData::fromArray(Fixtures::link(['status' => $status]))->status)->toBe(LinkStatus::Unknown);
@@ -52,3 +55,18 @@ it('carries a nullable linksCount on folders and tags', function (): void {
         ->and(TagData::fromArray(['id' => 1, 'name' => 'A', 'color' => '#fff', 'links_count' => 3])->linksCount)->toBe(3)
         ->and(TagData::fromArray(['id' => 1, 'name' => 'A', 'color' => '#fff'])->linksCount)->toBeNull();
 });
+
+it('raises UnexpectedResponseException for a 2xx body that cannot hydrate', function (string $body): void {
+    $e = TestClient::failure(MockResponse::make($body, 200));
+
+    expect($e)->toBeInstanceOf(UnexpectedResponseException::class)
+        ->and($e->status())->toBe(200)
+        ->and($e->getMessage())->not->toContain($body);
+})->with([
+    'empty object' => '{}',
+    'data not an object' => '{"data": "x"}',
+    'missing slug' => fn () => json_encode(['data' => array_diff_key(Fixtures::link(), ['slug' => 1])]),
+    'string id' => fn () => json_encode(['data' => Fixtures::link(['id' => '1'])]),
+    'bad date' => fn () => json_encode(['data' => Fixtures::link(['created_at' => 'not a date'])]),
+    'html' => '<html><body>Hi</body></html>',
+]);
