@@ -104,3 +104,47 @@ jobs:
           php bin/check-package-deps
           php bin/check-package-archive
           sh bin/scan-secrets
+
+  laravel-standalone:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: [8.4, 8.5]
+        laravel: ['12.*', '13.*']
+        stability: [prefer-lowest, prefer-stable]
+
+    name: laravel-standalone - P${{ matrix.php }} - L${{ matrix.laravel }} - ${{ matrix.stability }}
+
+    defaults:
+      run:
+        working-directory: packages/trackto-laravel
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          coverage: none
+
+      # CI only, until the client is on Packagist: resolve it from the sibling checkout. Never committed to a manifest.
+      - name: Point the unreleased client at the sibling checkout
+        run: composer config repositories.client '{"type":"path","url":"../trackto-client","options":{"symlink":false,"versions":{"expertsystemsau/trackto-php-client":"0.1.0"}}}'
+
+      - name: Pin Illuminate to the matrix version
+        run: composer require "illuminate/support:${{ matrix.laravel }}" "illuminate/console:${{ matrix.laravel }}" --no-interaction --no-update
+
+      - name: Install the Laravel package on its own
+        run: composer update --${{ matrix.stability }} --prefer-dist --no-interaction --no-progress
+
+      # The pin step rewrites this workspace's manifest, so the repo guards run in the tests job against the committed manifests.
+      - name: Check the package classes autoload
+        run: |
+          php -r 'require "vendor/autoload.php"; foreach (["TrackToServiceProvider", "Facades\\TrackTo", "ClientFactory", "Console\\PingCommand", "Console\\ShortenCommand"] as $c) { if (! class_exists("ExpertSystems\\TrackTo\\Laravel\\".$c)) { fwrite(STDERR, "missing $c\n"); exit(1); } }'

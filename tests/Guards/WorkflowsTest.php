@@ -190,3 +190,30 @@ it('pins every third-party action to a full commit SHA', function (): void {
         }
     }
 });
+
+it('proves the Laravel package standalone in tests.yml', function (): void {
+    /** @var array{strategy: array{matrix: array<string, list<mixed>>}, defaults: array{run: array{'working-directory': string}}, steps: list<array<string, mixed>>} $job */
+    $job = workflow('tests.yml')['jobs']['laravel-standalone'];
+    $matrix = $job['strategy']['matrix'];
+    $runs = array_values(array_map(static fn (array $step): string => (string) ($step['run'] ?? ''), $job['steps']));
+    $text = implode("\n", $runs);
+    $pin = array_values(array_filter($runs, static fn (string $run): bool => str_contains($run, 'composer require')));
+
+    expect($matrix['php'])->toBe([8.4, 8.5])
+        ->and($matrix['laravel'])->toBe(['12.*', '13.*'])
+        ->and($matrix['stability'])->toBe(['prefer-lowest', 'prefer-stable'])
+        ->and($job['defaults']['run']['working-directory'])->toBe('packages/trackto-laravel')
+        ->and(array_filter($job['steps'], static fn (array $step): bool => isset($step['working-directory'])))->toBeEmpty()
+        ->and($text)->toContain('composer config repositories.client')
+        ->and($text)->toContain('../trackto-client')
+        ->and($text)->toContain('"symlink":false')
+        ->and($pin)->toHaveCount(1)
+        ->and($pin[0])->toContain('illuminate/support:${{ matrix.laravel }}')
+        ->and($pin[0])->toContain('illuminate/console:${{ matrix.laravel }}')
+        ->and($pin[0])->toContain('--no-update')
+        ->and($text)->toContain('composer update --${{ matrix.stability }}');
+
+    foreach (['TrackToServiceProvider', 'Facades\\\\TrackTo', 'ClientFactory', 'Console\\\\PingCommand', 'Console\\\\ShortenCommand'] as $class) {
+        expect($text)->toContain($class);
+    }
+});
