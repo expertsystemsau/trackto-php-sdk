@@ -161,6 +161,27 @@ it('names a non-numeric timeout config key without echoing the value', function 
     'connect timeout' => ['TRACKTO_CONNECT_TIMEOUT', 'trackto.connect_timeout'],
 ]);
 
+it('treats a blank timeout env as the client defaults', function (): void {
+    config()->set('trackto', ['api_key' => 'tk_blank_timeout'] + laravelConfigFromEnv([
+        'TRACKTO_CONNECT_TIMEOUT' => '',
+        'TRACKTO_TIMEOUT' => '',
+    ]));
+
+    $config = laravelConfigSentRequest()->config();
+
+    expect($config->get('connect_timeout'))->toBe(10.0)
+        ->and($config->get('timeout'))->toBe(30.0);
+});
+
+it('treats a null timeout config as the client defaults', function (): void {
+    config()->set('trackto', ['api_key' => 'tk_null_timeout', 'connect_timeout' => null, 'timeout' => null]);
+
+    $config = laravelConfigSentRequest()->config();
+
+    expect($config->get('connect_timeout'))->toBe(10.0)
+        ->and($config->get('timeout'))->toBe(30.0);
+});
+
 it('resolves every default for a stale config that only has the key', function (): void {
     config()->set('trackto', ['api_key' => 'tk_stale_key']);
 

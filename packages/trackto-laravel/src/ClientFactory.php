@@ -42,8 +42,10 @@ final class ClientFactory
         ];
 
         foreach (['connect_timeout' => 'connectTimeout', 'timeout' => 'timeout'] as $key => $parameter) {
-            if (array_key_exists($key, $config)) {
-                $arguments[$parameter] = self::seconds($config[$key], $key);
+            $value = $config[$key] ?? null;
+
+            if ($value !== null && $value !== '') {
+                $arguments[$parameter] = self::seconds($value, $key);
             }
         }
 
