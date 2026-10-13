@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ExpertSystems\TrackTo\Laravel\Facades\TrackTo;
+use ExpertSystems\TrackTo\Laravel\Tests\Support\SplitOutput;
 use ExpertSystems\TrackTo\Testing\Fixtures;
 use ExpertSystems\TrackTo\TrackToClient;
 use Illuminate\Support\Facades\Artisan;
@@ -11,13 +12,14 @@ use Saloon\Http\Faking\MockResponse;
 const SHORTEN_KEY = 'tk_shorten_secret_key';
 
 /**
- * @return array{int, string}
+ * @return array{int, string, string} Exit code, stdout, stderr.
  */
 function shortenRun(string $url): array
 {
-    $code = Artisan::call('trackto:shorten', ['url' => $url]);
+    $output = new SplitOutput;
+    $code = Artisan::call('trackto:shorten', ['url' => $url], $output);
 
-    return [$code, Artisan::output()];
+    return [$code, $output->fetch(), $output->stderr()];
 }
 
 function shortenCreated(): MockResponse
@@ -62,13 +64,14 @@ it('sends the argument byte for byte', function (string $url): void {
 it('exits 1 with the field errors and no short URL on a 422', function (): void {
     TrackTo::fake([shortenInvalid()]);
 
-    [$code, $output] = shortenRun('nope');
+    [$code, $stdout, $stderr] = shortenRun('nope');
 
     expect($code)->toBe(1)
-        ->and($output)->toContain('ValidationException')
-        ->and($output)->toContain('destination_url: The destination url is invalid.')
-        ->and($output)->not->toContain('https://track.to/')
-        ->and($output)->not->toContain(SHORTEN_KEY);
+        ->and($stdout)->toBe('')
+        ->and($stderr)->toContain('ValidationException')
+        ->and($stderr)->toContain('destination_url: The destination url is invalid.')
+        ->and($stderr)->not->toContain('https://track.to/')
+        ->and($stderr)->not->toContain(SHORTEN_KEY);
 });
 
 it('sends a failing create exactly once', function (): void {
@@ -83,11 +86,11 @@ it('sends a failing create exactly once', function (): void {
 it('exits 1 on a missing key without printing a URL', function (): void {
     config()->set('trackto.api_key', null);
 
-    [$code, $output] = shortenRun('https://example.com/a');
+    [$code, $stdout, $stderr] = shortenRun('https://example.com/a');
 
     expect($code)->toBe(1)
-        ->and($output)->toContain('TRACKTO_API_KEY')
-        ->and($output)->not->toContain('https://track.to/')
+        ->and($stdout)->toBe('')
+        ->and($stderr)->toContain('TRACKTO_API_KEY')
         ->and(app()->resolved(TrackToClient::class))->toBeFalse();
 });
 
@@ -122,8 +125,8 @@ it('prints API-supplied text literally instead of reading it as console style ta
     $body = Fixtures::error('validation_error', '<info>boom</info>', ['<comment>url</comment>' => ['<error>bad</error>']]);
     TrackTo::fake([MockResponse::make($body, $body['statusCode'])]);
 
-    [, $output] = shortenRun('nope');
+    [, , $stderr] = shortenRun('nope');
 
-    expect($output)->toContain('<info>boom</info>')
-        ->and($output)->toContain('<comment>url</comment>: <error>bad</error>');
+    expect($stderr)->toContain('<info>boom</info>')
+        ->and($stderr)->toContain('<comment>url</comment>: <error>bad</error>');
 });

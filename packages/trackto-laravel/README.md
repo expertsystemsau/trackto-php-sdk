@@ -98,11 +98,13 @@ Checks the configured API key with one authenticated request. Exits 0 when the k
 php artisan trackto:shorten https://example.com
 ```
 
-Creates a link and prints only the short URL, so it can be captured in a script:
+Creates a link and prints only the short URL on stdout, so it can be captured in a script:
 
 ```bash
 URL=$(php artisan trackto:shorten https://example.com) || exit 1
 ```
+
+Both commands print failures to stderr and exit 1, so a failed run leaves `$URL` empty and the message still reaches your terminal or log.
 
 ## Octane
 

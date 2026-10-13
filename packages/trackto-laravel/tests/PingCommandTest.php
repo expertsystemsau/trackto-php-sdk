@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ExpertSystems\TrackTo\Laravel\Facades\TrackTo;
+use ExpertSystems\TrackTo\Laravel\Tests\Support\SplitOutput;
 use ExpertSystems\TrackTo\Requests\ListLinksRequest;
 use ExpertSystems\TrackTo\Testing\Fixtures;
 use ExpertSystems\TrackTo\TrackToClient;
@@ -16,13 +17,14 @@ use Saloon\Http\PendingRequest;
 const PING_KEY = 'tk_ping_secret_key';
 
 /**
- * @return array{int, string}
+ * @return array{int, string, string} Exit code, stdout, stderr.
  */
 function pingRun(): array
 {
-    $code = Artisan::call('trackto:ping');
+    $output = new SplitOutput;
+    $code = Artisan::call('trackto:ping', [], $output);
 
-    return [$code, Artisan::output()];
+    return [$code, $output->fetch(), $output->stderr()];
 }
 
 beforeEach(function (): void {
@@ -60,11 +62,12 @@ it('exits 1 and names the exception class on every SDK failure', function (Closu
     TrackTo::fake([$response()]);
     TrackTo::swap(TrackTo::getFacadeRoot()->withoutRetry());
 
-    [$code, $output] = pingRun();
+    [$code, $stdout, $stderr] = pingRun();
 
     expect($code)->toBe(1)
-        ->and($output)->toContain($class)
-        ->and($output)->not->toContain(PING_KEY);
+        ->and($stdout)->toBe('')
+        ->and($stderr)->toContain($class)
+        ->and($stderr)->not->toContain(PING_KEY);
 })->with([
     'unauthorized' => [fn () => Fixtures::errorResponse('unauthorized'), 'UnauthorizedException'],
     'team suspended' => [fn () => Fixtures::errorResponse('team_suspended'), 'TeamSuspendedException'],
@@ -80,11 +83,12 @@ it('exits 1 and names the exception class on every SDK failure', function (Closu
 it('exits 1 on a missing key without ever building the client', function (): void {
     config()->set('trackto.api_key', null);
 
-    [$code, $output] = pingRun();
+    [$code, $stdout, $stderr] = pingRun();
 
     expect($code)->toBe(1)
-        ->and($output)->toContain('ConfigurationException')
-        ->and($output)->toContain('TRACKTO_API_KEY')
+        ->and($stdout)->toBe('')
+        ->and($stderr)->toContain('ConfigurationException')
+        ->and($stderr)->toContain('TRACKTO_API_KEY')
         ->and(app()->resolved(TrackToClient::class))->toBeFalse();
 });
 
