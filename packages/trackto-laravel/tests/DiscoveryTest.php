@@ -12,6 +12,10 @@ use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use TrackTo;
 
+/**
+ * Feeds the package's own composer.json `extra.laravel` metadata to the manifest, so it proves that metadata
+ * names a loadable provider and facade alias. It does not prove Composer writes it or Laravel reads it.
+ */
 final class DiscoveryTest extends DiscoveryTestCase
 {
     #[Test]

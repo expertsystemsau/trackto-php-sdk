@@ -5,7 +5,8 @@ declare(strict_types=1);
 use ExpertSystems\TrackTo\Laravel\Facades\TrackTo;
 use Saloon\Http\Faking\MockClient;
 
-// A and B share no state but the process; Pest's random order (phpunit.xml.dist) runs them in either order.
+// Testbench rebuilds the app per test, so the first two tests pass in any order. Only the last one, which
+// refreshes the application after faking, is deterministic evidence that a mock does not outlive its app.
 it('holds the mock after faking, with no global mock', function (): void {
     $mock = TrackTo::fake();
 
