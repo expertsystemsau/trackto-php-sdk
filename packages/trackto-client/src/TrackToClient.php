@@ -149,12 +149,13 @@ final class TrackToClient extends Connector
     /**
      * Returns a copy that makes up to $tries attempts in total and never waits longer than $maxWait seconds.
      *
-     * @throws ConfigurationException When $tries is below 1 or $maxWait is negative
+     * @throws ConfigurationException When $tries is below 1 or $maxWait is negative or not finite
      */
     public function withRetry(int $tries, float $maxWait = 3.0): static
     {
-        if ($tries < 1 || $maxWait < 0) {
-            throw new ConfigurationException('Retry needs at least 1 attempt and a non-negative maximum wait.');
+        // NAN fails every comparison, so it needs its own check or the cap would silently never apply.
+        if ($tries < 1 || ! is_finite($maxWait) || $maxWait < 0) {
+            throw new ConfigurationException('Retry needs at least 1 attempt and a finite, non-negative maximum wait.');
         }
 
         $copy = clone $this;

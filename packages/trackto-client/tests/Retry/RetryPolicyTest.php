@@ -12,6 +12,7 @@ use ExpertSystems\TrackTo\Exceptions\ValidationException;
 use ExpertSystems\TrackTo\Testing\Fixtures;
 use ExpertSystems\TrackTo\Tests\Support\RecordingSleeper;
 use ExpertSystems\TrackTo\Tests\Support\TestClient;
+use ExpertSystems\TrackTo\TrackToClient;
 use GuzzleHttp\Exception\ConnectException;
 use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Http\Faking\MockClient;
@@ -154,3 +155,8 @@ it('retries a failing page inside a lazy walk', function (): void {
     expect($slugs)->toBe(['a', 'b']);
     $mock->assertSentCount(3);
 });
+
+it('rejects a retry cap that is not a finite non-negative number', function (float $maxWait): void {
+    expect(fn () => (new TrackToClient(apiKey: TestClient::API_KEY))->withRetry(3, $maxWait))
+        ->toThrow(ConfigurationException::class);
+})->with(['nan' => [NAN], 'infinity' => [INF], 'negative infinity' => [-INF], 'negative' => [-0.1]]);

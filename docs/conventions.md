@@ -177,7 +177,7 @@ $patient = $client->withRetry(tries: 5, maxWait: 10.0);
 $once = $client->withoutRetry();
 ```
 
-`withRetry()` throws `ConfigurationException` for fewer than one attempt or a negative `maxWait`. Typed exceptions still throw once the attempts run out.
+`withRetry()` throws `ConfigurationException` for fewer than one attempt or a `maxWait` that is negative, `NAN` or infinite. Typed exceptions still throw once the attempts run out.
 
 ## Timeouts and transport
 
