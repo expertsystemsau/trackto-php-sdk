@@ -38,7 +38,10 @@ final class LinksPaginator extends PagedPaginator
      */
     public function page(Response $response): LinkPage
     {
-        $this->pages ??= new WeakMap;
+        // An explicit assignment, not ??=: older PHPStan widens ??= to WeakMap<object, mixed>.
+        if ($this->pages === null) {
+            $this->pages = new WeakMap;
+        }
 
         if (! isset($this->pages[$response])) {
             $this->pages[$response] = $this->hydrate($response);
