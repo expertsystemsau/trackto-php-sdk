@@ -33,15 +33,17 @@ $client = new TrackToClient(
 );
 ```
 
+`headers()` and `config()` rebuild their stores on every call, so `$client->headers()->add(...)` and `$client->config()->add(...)` are a no-op. Use a `with*()` method or a constructor argument instead.
+
 A blank key throws `ConfigurationException`, as does a base URL that is not `https` (plain `http` is accepted only for `localhost`, `*.localhost` and `127.0.0.1`), a timeout that is not a finite number above zero, and an API version with control characters.
 
 ## Resources and methods
 
-`$client->links()` returns a fresh resource each call. Resources group operations by API area; Phase 12 adds `folders()` and `tags()` next to `links()`.
+`$client->links()`, `$client->folders()` and `$client->tags()` each return a fresh resource. Resources group operations by API area.
 
-Method names come from one vocabulary: `list`, `all`, `get`, `create`, `update` and `delete`. Phase 12 adds `update`, `delete`, analytics and bulk actions. Inputs are named arguments, never input objects.
+Method names come from one vocabulary: `list`, `all`, `get`, `create`, `update`, `delete`, `analytics` and the `bulk*` methods. Inputs are named arguments, never input objects.
 
-`list()` fetches one page and returns a `LinkPage`. `all()` returns a lazy iterator over every page; it can be iterated more than once, and each iteration makes fresh requests. It counts pages itself rather than trusting the server's `current_page`, and stops after 10,000 pages whatever the server reports.
+`list()` fetches one page and returns a `LinkPage`. `all()` returns a lazy iterator over every page; it can be iterated more than once, and each iteration makes fresh requests. It counts pages itself rather than trusting the server's `current_page`, and stops after 10,000 pages whatever the server reports. A larger account should page with `list()`.
 
 ```php
 use ExpertSystems\TrackTo\Enums\LinkSort;
@@ -111,11 +113,14 @@ The client picks the class from the error envelope's `name`, not from the status
 | other 4xx | `BadRequestException` |
 | anything else | `UnexpectedResponseException` |
 
-Three exceptions are not API errors:
+Four exceptions are not API errors:
 
 - `ConnectionException`: the request never got a response (DNS, refused connection, timeout).
 - `UnexpectedResponseException`: a response arrived but its body is unusable, such as an HTML error page or a 3xx. It carries the status.
+- `ExpertSystems\TrackTo\Exceptions\InvalidArgumentException`: thrown before any request for a blank slug, a bulk slug count outside 1 to 100, or a password passed together with `removePassword: true`. It extends PHP's `\InvalidArgumentException`, so existing `catch` blocks still work.
 - `ConfigurationException`: the client was built with a blank key, an insecure base URL, an invalid timeout, a version or suffix containing control characters, an invalid retry setting, or a request that cannot be built, such as invalid UTF-8 in a body field.
+
+A write that comes back with a 2xx status but an unusable body raises `UnexpectedResponseException` whose `status()` is 2xx. That means the write succeeded and only the body could not be read: inspect `response()` before retrying, or the write may be applied twice.
 
 API exceptions expose:
 
@@ -130,21 +135,25 @@ API exceptions expose:
 
 `RateLimitInfo` has four nullable integer fields: `limit`, `remaining`, `reset` and `retryAfter`. A field is `null` when the server did not send the header it comes from. When `remaining` is 0 and no `Retry-After` header is present, `retryAfter` is the reset time.
 
-## Updates (Phase 12)
+## Updates
 
-Update methods take named arguments where an omitted argument means unchanged and `null` means clear. The default behind "omitted" is the `Omitted` enum, because `unset` is a reserved word in PHP and cannot name a class. `removePassword: true` is the only way to clear a password; passing `password: null` leaves it unchanged.
+One rule, with two exceptions. In `update()`, an omitted argument is left unchanged and `null` means clear. The default behind "omitted" is the `Omitted` enum, because `unset` is a reserved word in PHP and cannot name a class.
+
+- Tags clear with `tags: []`. `tags: null` is a `TypeError`.
+- A password clears only with `removePassword: true`. `password: null` leaves it unchanged.
 
 ```php
 $client->links()->update(
     slug: 'launch',
     destinationUrl: 'https://example.com/new',
+    newSlug: 'launch-q4',            // rename the link
     expiresAt: null,                 // clear the expiry
     folderId: 4,                     // move to folder 4
     removePassword: true,            // drop the password
 );                                   // everything else is left unchanged
 ```
 
-The provisional signature, which Phase 12 implements:
+The signature:
 
 ```php
 public function update(
@@ -154,19 +163,95 @@ public function update(
     DateTimeInterface|Omitted|null $expiresAt = Omitted::Value,
     int|Omitted|null $folderId = Omitted::Value,
     array|Omitted $tags = Omitted::Value,
-    ?string $password = null,
+    #[SensitiveParameter] ?string $password = null,
     bool $removePassword = false,
 ): LinkData;
 ```
 
-The semantics are settled. The parameter names are provisional until Phase 12 ships `update()`.
+| Argument | Omitted | `null` | Value |
+| --- | --- | --- | --- |
+| `newSlug` | Unchanged | `TypeError` | Renames the link |
+| `expiresAt` | Unchanged | Clears the expiry | Sets the expiry |
+| `folderId` | Unchanged | Removes the link from its folder | Moves the link to that folder |
+| `tags` | Unchanged | `TypeError` | Replaces the tags; `[]` removes them all |
+| `password` | Unchanged | Unchanged | Sets the password |
+| `removePassword` | Unchanged (`false`) | Not accepted | `true` clears the password |
+
+`destinationUrl` is always required, because the API requires it on every update. The SDK never reads a link before writing it. Passing a password together with `removePassword: true` throws `InvalidArgumentException`.
+
+A wrapper that forwards an optional argument keeps the default, so "not given" survives the call:
+
+```php
+function moveLink(LinksResource $links, string $slug, int|Omitted|null $folderId = Omitted::Value): LinkData
+{
+    return $links->update(slug: $slug, destinationUrl: 'https://example.com/new', folderId: $folderId);
+}
+```
+
+`delete(slug:)` returns nothing. A missing link raises `NotFoundException`; it is never treated as already deleted.
+
+## Bulk actions
+
+```php
+public function bulkMove(array $slugs, ?int $folderId): BulkResultData;
+
+public function bulkTag(array $slugs, array $tags): BulkResultData;
+
+public function bulkDelete(array $slugs): BulkResultData;
+```
+
+```php
+$client->links()->bulkMove(slugs: ['launch', 'q4'], folderId: 4);
+$client->links()->bulkTag(slugs: ['launch', 'q4'], tags: ['campaign']);
+$client->links()->bulkDelete(slugs: ['old-a', 'old-b']);
+```
+
+Each call takes between 1 and 100 slugs and sends one request. A bulk call is never chunked, so 101 slugs throw `InvalidArgumentException` before anything is sent, and never retried: it makes one attempt even under `withRetry()`.
+
+The API refuses an invalid bulk request as a whole. A 404, 403 or 422 refusal changes nothing, and a 404 lists the unknown slugs in `errorsFor('slugs')`.
+
+A bulk delete that fails part-way, for example on a 5xx or a dropped connection, may leave partial results, so re-list the links before retrying. Do not assume it was applied in full or not at all.
+
+- `bulkMove(folderId: null)` takes the links out of their folders.
+- `bulkTag()` only adds tags; it never removes one.
+- The result holds the server's deduplicated `slugs`. An action this SDK does not know reads as `BulkAction::Unknown`.
+
+## Analytics
+
+`$client->links()->analytics(slug: '007')` returns a `LinkAnalyticsData`:
+
+| Field | Holds |
+| --- | --- |
+| `link` | The `LinkData` |
+| `total` | The click count |
+| `overTime` | One `AnalyticsDayData` per day with clicks in the last 30 days; `date` is a UTC `Y-m-d` string |
+| `topReferrers` | At most 10 `AnalyticsCountData` rows, `label` and `count`; `Direct` marks no referrer |
+| `topCountries` | At most 10 rows; `Unknown` marks a click with no country |
+
+Lists keep the API's order. There is no date range argument.
+
+## Folders and tags
+
+`$client->folders()` and `$client->tags()` are unpaginated: `list()` returns a plain PHP list of `FolderData` or `TagData`, and there is no `all()`.
+
+```php
+$folder = $client->folders()->create(name: 'Campaigns');
+$tag = $client->tags()->create(name: 'launch', color: '#ff8800');
+$untinted = $client->tags()->create(name: 'q4');   // a null colour lets the server pick one
+
+$client->folders()->delete(id: $folder->id);
+$client->tags()->delete(id: $tag->id);
+```
+
+`delete(id:)` takes the integer id. A folder that still holds links is refused with `ValidationException`. Deleting a tag detaches it from every link. An unknown id raises `NotFoundException`.
 
 ## Retry
 
 - A 429 with `Retry-After` or `RateLimit` reset timing within the 3-second cap is retried for any method, because the request was not processed.
-- Reads (`GET`) also retry on a 5xx and on a connection failure, waiting 0.5 seconds between attempts.
+- Reads (`GET`) also retry on a 5xx and on a connection failure. A 5xx waits for its `Retry-After` header when that is within the cap, and 0.5 seconds without one; a `Retry-After` above the cap means no retry.
 - No other 4xx is retried.
 - A write is never re-sent after a 5xx or a connection failure, because the server may have processed it.
+- A bulk action is never retried, even after a 429.
 - A wait above the cap means no retry: the exception is thrown and `rateLimit()->retryAfter` holds the wait.
 - A 429 with no timing information is not retried.
 
@@ -189,7 +274,7 @@ The User-Agent is `trackto-php/<version> php/<PHP_VERSION>`, followed by the suf
 
 ## Testing
 
-`ExpertSystems\TrackTo\Testing\Fixtures` is public. `link()` builds a complete link body, `page()` a list response, `error()` an error envelope and `errorResponse()` a Saloon `MockResponse` for an error code. They are checked against the OpenAPI spec, so mocks cannot drift from the real API.
+`ExpertSystems\TrackTo\Testing\Fixtures` is public. `link()` builds a complete link body, `folder()` and `tag()` the folder and tag bodies, `analytics()` an analytics body, `bulk()` a bulk result, `page()` a list response, `error()` an error envelope and `errorResponse()` a Saloon `MockResponse` for an error code. They are checked against the OpenAPI spec, so mocks cannot drift from the real API.
 
 `withMockClient()` returns a copy of the client wired to a `MockClient`:
 
@@ -204,7 +289,7 @@ $client = $client->withMockClient(new MockClient([
 
 The API key is held as a `SensitiveParameterValue`. `var_dump`, `print_r` and `__debugInfo` omit it, and `serialize()` throws.
 
-One residual risk is accepted. An API exception keeps the Saloon `Response`, and that response's request carries the `Authorization` header. Dumping a thrown exception with `var_export` or Symfony's `dd()` can therefore print the key. Do not dump exceptions into logs in production; log `getMessage()` and `status()` instead.
+One residual risk is accepted. An API exception keeps the Saloon `Response`, and that response's request carries the `Authorization` header. Dumping a thrown exception with `var_export` or Symfony's `dd()` can therefore print the key, and the request body too, which for `create()` and `update()` can include a link password. Do not dump exceptions into logs in production; log `getMessage()` and `status()` instead.
 
 `debug()` prints request headers, so keep it out of production.
 
@@ -212,4 +297,4 @@ One residual risk is accepted. An API exception keeps the Saloon `Response`, and
 
 `spec/openapi.json` is a copy of the track.to OpenAPI document. Refresh it with `php bin/sync-openapi`, or `php bin/sync-openapi --source=/path/to/openapi.json` to read it from somewhere else.
 
-The contract tests compare the SDK against that spec: every operation needs a request class, every response schema a data object, every error code an exception, and the default `Track-Version` must equal the spec version. Operations that are not built yet are listed in `tests/Contract/excluded-operations.php`; Phase 12 empties that list.
+The contract tests compare the SDK against that spec: every operation needs a request class, every response schema a data object, every error code an exception, and the default `Track-Version` must equal the spec version. Every spec operation is built, so `tests/Contract/excluded-operations.php` is empty; an entry belongs there only while a new API operation is being implemented. Inline response schemas, such as analytics and bulk, are mapped to their data objects by an explicit table, and a new inline response with no entry fails the suite.

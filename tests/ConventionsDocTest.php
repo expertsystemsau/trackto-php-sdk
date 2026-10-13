@@ -7,7 +7,9 @@ use ExpertSystems\TrackTo\Exceptions\ConnectionException;
 use ExpertSystems\TrackTo\Exceptions\ErrorMapper;
 use ExpertSystems\TrackTo\Exceptions\TrackToException;
 use ExpertSystems\TrackTo\Exceptions\UnexpectedResponseException;
+use ExpertSystems\TrackTo\Resources\FoldersResource;
 use ExpertSystems\TrackTo\Resources\LinksResource;
+use ExpertSystems\TrackTo\Resources\TagsResource;
 use ExpertSystems\TrackTo\TrackToClient;
 
 function conventionsDoc(): string
@@ -22,6 +24,26 @@ function conventionsDoc(): string
 function conventionsParameters(ReflectionMethod $method, array $except = []): array
 {
     return array_values(array_diff(array_map(static fn (ReflectionParameter $p): string => $p->getName(), $method->getParameters()), $except));
+}
+
+/**
+ * The `$name` parameters, in order, of the doc's `public function <method>(` block.
+ *
+ * @return list<string>
+ */
+function conventionsSignature(string $method): array
+{
+    $doc = conventionsDoc();
+    $start = strpos($doc, "public function {$method}(");
+
+    if ($start === false) {
+        return [];
+    }
+
+    $end = strpos($doc, '):', $start);
+    preg_match_all('/\$(\w+)/', substr($doc, $start, ($end === false ? strlen($doc) : $end) - $start), $matches);
+
+    return $matches[1];
 }
 
 function conventionsDefault(ReflectionMethod $method, string $parameter): mixed
@@ -43,7 +65,10 @@ it('has every section in order', function (): void {
         'Resources and methods',
         'Data objects',
         'Exceptions',
-        'Updates (Phase 12)',
+        'Updates',
+        'Bulk actions',
+        'Analytics',
+        'Folders and tags',
         'Retry',
         'Timeouts and transport',
         'Testing',
@@ -59,6 +84,8 @@ it('names every exception class', function (): void {
         expect(conventionsDoc())->toContain((new ReflectionClass($class))->getShortName());
     }
 
+    expect(conventionsDoc())->toContain('Exceptions\InvalidArgumentException');
+
     foreach (array_keys(ErrorMapper::BY_NAME) as $code) {
         expect(conventionsDoc())->toContain('`'.$code.'`');
     }
@@ -73,7 +100,21 @@ it('shows every parameter as a named argument', function (string $class, string 
     'links list' => [LinksResource::class, 'list', []],
     'links all' => [LinksResource::class, 'all', []],
     'links create' => [LinksResource::class, 'create', []],
+    'links update' => [LinksResource::class, 'update', []],
+    'links delete' => [LinksResource::class, 'delete', []],
+    'links analytics' => [LinksResource::class, 'analytics', []],
+    'links bulkMove' => [LinksResource::class, 'bulkMove', []],
+    'links bulkTag' => [LinksResource::class, 'bulkTag', []],
+    'links bulkDelete' => [LinksResource::class, 'bulkDelete', []],
+    'folders create' => [FoldersResource::class, 'create', []],
+    'folders delete' => [FoldersResource::class, 'delete', []],
+    'tags create' => [TagsResource::class, 'create', []],
+    'tags delete' => [TagsResource::class, 'delete', []],
 ]);
+
+it('pins the update and bulk signatures in order', function (string $method): void {
+    expect(conventionsSignature($method))->toBe(conventionsParameters(new ReflectionMethod(LinksResource::class, $method)));
+})->with(['update', 'bulkMove', 'bulkTag', 'bulkDelete']);
 
 it('lists every with method the client declares', function (): void {
     $declared = array_filter(
@@ -110,7 +151,35 @@ it('records the update semantics', function (): void {
         ->toContain('removePassword: true')
         ->toContain('`null` means clear')
         ->toContain('unchanged')
-        ->toContain('provisional');
+        ->toContain('`tags: []`')
+        ->not->toContain('provisional')
+        ->not->toContain('Phase 12');
+});
+
+it('records the bulk promises', function (): void {
+    expect(conventionsDoc())
+        ->toContain('between 1 and 100 slugs')
+        ->toContain('never chunked')
+        ->toContain('never retried')
+        ->toContain('changes nothing')
+        ->toContain('partial results')
+        ->toContain('re-list');
+});
+
+it('records the remaining operations', function (): void {
+    expect(conventionsDoc())
+        ->toContain('analytics(')
+        ->toContain('folders()')
+        ->toContain('tags()')
+        ->toContain('unpaginated')
+        ->toContain('10,000 pages')
+        ->toContain('`headers()` and `config()`')
+        ->toContain('no-op')
+        ->toContain('inspect `response()` before retrying')
+        ->toContain('`folder()`')
+        ->toContain('`tag()`')
+        ->toContain('`analytics()`')
+        ->toContain('`bulk()`');
 });
 
 it('records the accepted exception dump residual', function (): void {
