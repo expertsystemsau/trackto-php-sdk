@@ -1,0 +1,62 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+$root = dirname(__DIR__);
+$source = $root.'/../track.to/openapi.json';
+
+foreach (array_slice($argv, 1) as $arg) {
+    if (str_starts_with($arg, '--source=')) {
+        $source = substr($arg, 9);
+
+        continue;
+    }
+
+    if (str_starts_with($arg, '--root=')) {
+        $root = substr($arg, 7);
+
+        continue;
+    }
+
+    fwrite(STDERR, "Usage: sync-openapi [--source=<path>] [--root=<dir>]\n");
+    exit(1);
+}
+
+$bytes = is_file($source) ? @file_get_contents($source) : false;
+
+if ($bytes === false) {
+    fwrite(STDERR, "sync-openapi: source not found: $source (pass --source=<path to track.to openapi.json>)\n");
+    exit(1);
+}
+
+try {
+    $spec = json_decode($bytes, true, 512, JSON_THROW_ON_ERROR);
+} catch (JsonException $e) {
+    fwrite(STDERR, "sync-openapi: source is not valid JSON: {$e->getMessage()}\n");
+    exit(1);
+}
+
+$version = is_array($spec) && is_array($spec['info'] ?? null) ? ($spec['info']['version'] ?? null) : null;
+
+if (! is_array($spec) || ! is_string($spec['openapi'] ?? null) || ! is_string($version)) {
+    fwrite(STDERR, "sync-openapi: source has no string `openapi` or `info.version`\n");
+    exit(1);
+}
+
+$dir = $root.'/spec';
+
+if (! is_dir($dir) && ! mkdir($dir, 0777, true) && ! is_dir($dir)) {
+    fwrite(STDERR, "sync-openapi: cannot create $dir\n");
+    exit(1);
+}
+
+$temp = $dir.'/.openapi-'.bin2hex(random_bytes(6)).'.tmp';
+
+if (file_put_contents($temp, $bytes) === false || ! rename($temp, $dir.'/openapi.json')) {
+    @unlink($temp);
+    fwrite(STDERR, "sync-openapi: cannot write $dir/openapi.json\n");
+    exit(1);
+}
+
+echo "spec/openapi.json synced (info.version $version)\n";
