@@ -14,6 +14,7 @@ use Saloon\Enums\Method;
 use Saloon\Http\Response;
 use Saloon\Traits\Body\HasJsonBody;
 use SensitiveParameter;
+use SensitiveParameterValue;
 
 final class UpdateLinkRequest extends TrackToRequest implements HasBody
 {
@@ -22,6 +23,9 @@ final class UpdateLinkRequest extends TrackToRequest implements HasBody
     protected Method $method = Method::PATCH;
 
     private readonly string $segment;
+
+    /** Wrapped so a dump of the request never prints it; unwrapped only when the body is built. */
+    private readonly ?SensitiveParameterValue $password;
 
     /**
      * @param  array<array-key, string>|Omitted  $tags  Tag names; [] removes all. Keys are dropped so the body is always a JSON list
@@ -33,7 +37,7 @@ final class UpdateLinkRequest extends TrackToRequest implements HasBody
         private readonly DateTimeInterface|Omitted|null $expiresAt = Omitted::Value,
         private readonly int|Omitted|null $folderId = Omitted::Value,
         private readonly array|Omitted $tags = Omitted::Value,
-        #[SensitiveParameter] private readonly ?string $password = null,
+        #[SensitiveParameter] ?string $password = null,
         private readonly bool $removePassword = false,
     ) {
         // Any non-null password counts, '' included; the message never carries it.
@@ -41,6 +45,7 @@ final class UpdateLinkRequest extends TrackToRequest implements HasBody
             throw new InvalidArgumentException('Pass either a password or removePassword: true, not both.');
         }
 
+        $this->password = $password === null ? null : new SensitiveParameterValue($password);
         $this->segment = SlugPath::encode($slug);
     }
 
@@ -76,8 +81,8 @@ final class UpdateLinkRequest extends TrackToRequest implements HasBody
             $body['tags'] = array_values($this->tags);
         }
 
-        if (is_string($this->password)) {
-            $body['password'] = $this->password;
+        if ($this->password !== null) {
+            $body['password'] = $this->password->getValue();
         }
 
         if ($this->removePassword) {

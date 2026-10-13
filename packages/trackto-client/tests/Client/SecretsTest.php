@@ -5,7 +5,9 @@ declare(strict_types=1);
 use ExpertSystems\TrackTo\Exceptions\InvalidArgumentException;
 use ExpertSystems\TrackTo\Exceptions\NotFoundException;
 use ExpertSystems\TrackTo\Exceptions\ValidationException;
+use ExpertSystems\TrackTo\Requests\CreateLinkRequest;
 use ExpertSystems\TrackTo\Requests\GetLinkRequest;
+use ExpertSystems\TrackTo\Requests\UpdateLinkRequest;
 use ExpertSystems\TrackTo\Testing\Fixtures;
 use ExpertSystems\TrackTo\Tests\Support\TestClient;
 use ExpertSystems\TrackTo\TrackToClient;
@@ -138,4 +140,29 @@ it('keeps a link password out of a ValidationException from update', function ()
     }
 
     $this->fail('Expected a ValidationException.');
+});
+
+it('keeps a link password out of var_dump and print_r of the request objects, yet still sends it', function (): void {
+    $requests = [
+        new CreateLinkRequest('https://example.com/a', password: SECRET_LINK_PASSWORD),
+        new UpdateLinkRequest('x', 'https://example.com/a', password: SECRET_LINK_PASSWORD),
+    ];
+
+    foreach ($requests as $request) {
+        ob_start();
+        var_dump($request);
+        $dumped = (string) ob_get_clean();
+
+        expect($dumped)->not->toContain(SECRET_LINK_PASSWORD)
+            ->and(print_r($request, true))->not->toContain(SECRET_LINK_PASSWORD);
+    }
+
+    $mock = new MockClient([MockResponse::make(['data' => Fixtures::link()], 200), MockResponse::make(['data' => Fixtures::link()], 200)]);
+    $links = TestClient::make($mock)->links();
+    $links->create('https://example.com/a', password: SECRET_LINK_PASSWORD);
+    $links->update('x', 'https://example.com/a', password: SECRET_LINK_PASSWORD);
+
+    foreach ($mock->getRecordedResponses() as $response) {
+        expect($response->getPendingRequest()->body()->all())->toMatchArray(['password' => SECRET_LINK_PASSWORD]);
+    }
 });
