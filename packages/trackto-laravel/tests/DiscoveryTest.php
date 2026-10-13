@@ -37,4 +37,16 @@ final class DiscoveryTest extends DiscoveryTestCase
         $this->assertSame('Bearer tk_discovery_key', $request->headers()->get('Authorization'));
         $this->assertSame('2026-07-06', $request->headers()->get('Track-Version'));
     }
+
+    #[Test]
+    public function it_registers_the_provider_once_when_it_is_also_registered_by_hand(): void
+    {
+        config()->set('trackto.api_key', 'tk_discovery_key');
+        $client = app(TrackToClient::class);
+
+        app()->register(TrackToServiceProvider::class);
+
+        $this->assertCount(1, app()->getProviders(TrackToServiceProvider::class));
+        $this->assertSame($client, app(TrackToClient::class));
+    }
 }
