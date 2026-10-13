@@ -117,3 +117,13 @@ it('sends an empty url as an empty destination_url and exits 1 on the 422', func
         ->and($body)->toBeArray()
         ->and($body['destination_url'] ?? null)->toBe('');
 });
+
+it('prints API-supplied text literally instead of reading it as console style tags', function (): void {
+    $body = Fixtures::error('validation_error', '<info>boom</info>', ['<comment>url</comment>' => ['<error>bad</error>']]);
+    TrackTo::fake([MockResponse::make($body, $body['statusCode'])]);
+
+    [, $output] = shortenRun('nope');
+
+    expect($output)->toContain('<info>boom</info>')
+        ->and($output)->toContain('<comment>url</comment>: <error>bad</error>');
+});

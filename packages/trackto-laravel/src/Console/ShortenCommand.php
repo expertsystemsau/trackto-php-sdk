@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace ExpertSystems\TrackTo\Laravel\Console;
 
-use ExpertSystems\TrackTo\Exceptions\ApiException;
 use ExpertSystems\TrackTo\Exceptions\TrackToException;
 use ExpertSystems\TrackTo\TrackToClient;
 use Illuminate\Console\Command;
 
 final class ShortenCommand extends Command
 {
+    use RendersTrackToFailure;
+
     protected $signature = 'trackto:shorten {url : The destination URL}';
 
     protected $description = 'Create a track.to short link and print its short URL';
@@ -31,16 +32,5 @@ final class ShortenCommand extends Command
         $this->line($link->shortUrl);
 
         return self::SUCCESS;
-    }
-
-    private function renderFailure(TrackToException $e): void
-    {
-        $this->components->error(class_basename($e).': '.$e->getMessage());
-
-        if ($e instanceof ApiException) {
-            foreach (array_keys($e->errors()) as $field) {
-                $this->line($field.': '.implode(' ', $e->errorsFor((string) $field)));
-            }
-        }
     }
 }
