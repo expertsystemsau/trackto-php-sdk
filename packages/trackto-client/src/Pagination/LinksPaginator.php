@@ -23,6 +23,12 @@ final class LinksPaginator extends PagedPaginator
      */
     protected ?int $maxPages = 10_000;
 
+    /**
+     * Off: the SDK's own page counter and ceiling bound the walk, and Saloon's detector would throw a
+     * PaginationException, which is not a TrackToException.
+     */
+    protected bool $detectInfiniteLoop = false;
+
     /** @internal Counts cache misses; tests observe single hydration through it. */
     public int $hydrations = 0;
 

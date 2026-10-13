@@ -143,3 +143,11 @@ it('hydrates each page once across a full links()->all() walk', function (): voi
     expect(slugsOf($links))->toBe(['a', 'b', 'c', 'd', 'e'])
         ->and($links->hydrations)->toBe(3);
 });
+
+it('walks identical page bodies to the reported last page without a non-SDK exception', function (): void {
+    $same = static fn (): MockResponse => MockResponse::make(Fixtures::page(pageLinks(['a']), 1, 10, 1, 10), 200);
+    $mock = new MockClient(array_map($same, range(1, 10)));
+
+    expect(slugsOf(TestClient::make($mock)->links()->all(perPage: 1)))->toHaveCount(10);
+    $mock->assertSentCount(10);
+});
