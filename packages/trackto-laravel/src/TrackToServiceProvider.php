@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExpertSystems\TrackTo\Laravel;
 
+use ExpertSystems\TrackTo\Laravel\Console\PingCommand;
 use ExpertSystems\TrackTo\TrackToClient;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
@@ -28,5 +29,9 @@ final class TrackToServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->publishes([__DIR__.'/../config/trackto.php' => $this->app->configPath('trackto.php')], 'trackto-config');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([PingCommand::class]);
+        }
     }
 }
