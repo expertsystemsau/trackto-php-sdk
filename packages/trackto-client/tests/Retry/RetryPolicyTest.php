@@ -10,14 +10,12 @@ use ExpertSystems\TrackTo\Exceptions\RateLimitedException;
 use ExpertSystems\TrackTo\Exceptions\ServerException;
 use ExpertSystems\TrackTo\Exceptions\ValidationException;
 use ExpertSystems\TrackTo\Testing\Fixtures;
+use ExpertSystems\TrackTo\Tests\Support\Mocks;
 use ExpertSystems\TrackTo\Tests\Support\RecordingSleeper;
 use ExpertSystems\TrackTo\Tests\Support\TestClient;
 use ExpertSystems\TrackTo\TrackToClient;
-use GuzzleHttp\Exception\ConnectException;
-use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
-use Saloon\Http\PendingRequest;
 
 const DESTINATION = 'https://example.com/landing';
 
@@ -29,18 +27,6 @@ function policyServerError(): MockResponse
 function policyOk(int $status = 200): MockResponse
 {
     return MockResponse::make(['data' => Fixtures::link()], $status);
-}
-
-/**
- * A connection failure mock that counts how often it is attempted (MockClient does not record thrown mocks).
- */
-function policyDrop(int &$attempts): MockResponse
-{
-    return MockResponse::make()->throw(static function (PendingRequest $pending) use (&$attempts): FatalRequestException {
-        $attempts++;
-
-        return new FatalRequestException(new ConnectException('cURL error 7: Failed to connect', $pending->createPsrRequest()), $pending);
-    });
 }
 
 it('never retries other 4xx responses, for reads or writes', function (string $name, string $class): void {
@@ -84,19 +70,19 @@ it('never re-sends a POST after a 5xx', function (): void {
 it('retries a GET connection failure but not a POST one', function (): void {
     $attempts = 0;
     $sleeper = new RecordingSleeper;
-    $mock = new MockClient([policyDrop($attempts), policyDrop($attempts), policyOk()]);
+    $mock = new MockClient([Mocks::drop($attempts), Mocks::drop($attempts), policyOk()]);
 
     TestClient::make($mock, $sleeper)->links()->get('x');
     expect($attempts)->toBe(2)->and($sleeper->waits)->toBe([0.5, 0.5]);
 
     $attempts = 0;
-    $mock = new MockClient([policyDrop($attempts), policyDrop($attempts), policyDrop($attempts), policyOk()]);
+    $mock = new MockClient([Mocks::drop($attempts), Mocks::drop($attempts), Mocks::drop($attempts), policyOk()]);
     expect(fn () => TestClient::make($mock)->links()->get('x'))->toThrow(ConnectionException::class);
     expect($attempts)->toBe(3);
 
     $attempts = 0;
     $sleeper = new RecordingSleeper;
-    $mock = new MockClient([policyDrop($attempts), policyOk(201)]);
+    $mock = new MockClient([Mocks::drop($attempts), policyOk(201)]);
     expect(fn () => TestClient::make($mock, $sleeper)->links()->create(destinationUrl: DESTINATION))->toThrow(ConnectionException::class);
     expect($attempts)->toBe(1)->and($sleeper->waits)->toBe([]);
 });
