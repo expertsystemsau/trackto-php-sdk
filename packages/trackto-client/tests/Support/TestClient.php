@@ -29,12 +29,13 @@ final class TestClient
     }
 
     /**
-     * The exception a single links()->get() raises against the given mock response.
+     * The exception a single links()->get() raises against the given mock response. Retry is off:
+     * the error tests prove mapping, and a GET 5xx would otherwise consume three mocked responses.
      */
     public static function failure(MockResponse $response): Throwable
     {
         try {
-            self::make(new MockClient([$response]))->links()->get('x');
+            self::make(new MockClient([$response]))->withoutRetry()->links()->get('x');
         } catch (Throwable $e) {
             return $e;
         }

@@ -15,6 +15,7 @@ use ExpertSystems\TrackTo\Support\UsleepSleeper;
 use LogicException;
 use OutOfBoundsException;
 use Saloon\Contracts\ArrayStore as ArrayStoreContract;
+use Saloon\Enums\Method;
 use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Exceptions\Request\RequestException;
 use Saloon\Http\Auth\TokenAuthenticator;
@@ -45,6 +46,8 @@ final class TrackToClient extends Connector
     public const string DEFAULT_BASE_URL = 'https://api.track.to';
 
     public const string DEFAULT_VERSION = '2026-07-06';
+
+    private const float READ_BACKOFF = 0.5;
 
     private SensitiveParameterValue $apiKey;
 
@@ -108,24 +111,68 @@ final class TrackToClient extends Connector
     }
 
     /**
-     * A timed 429 within the cap is retried for any method: the request was not processed.
-     * A wait above the cap means no retry, never "sleep the cap".
+     * A timed 429 within the cap retries for any method (the request was not processed). Reads also retry
+     * a 5xx or a lost connection after a short backoff. A write is never re-sent after those, and no other
+     * status retries. A wait above the cap means no retry, never "sleep the cap".
      */
     public function handleRetry(FatalRequestException|RequestException $exception, Request $request): bool
     {
-        if ($exception instanceof RequestException && $exception->getResponse()->status() === 429) {
-            $wait = RateLimitInfo::fromResponse($exception->getResponse())->retryAfter;
+        if ($exception instanceof RequestException) {
+            $status = $exception->getResponse()->status();
 
-            if ($wait === null || $wait > $this->maxWait) {
-                return false;
+            if ($status === 429) {
+                $wait = RateLimitInfo::fromResponse($exception->getResponse())->retryAfter;
+
+                if ($wait === null || $wait > $this->maxWait) {
+                    return false;
+                }
+
+                $this->sleeper->sleep((float) $wait);
+
+                return true;
             }
 
-            $this->sleeper->sleep((float) $wait);
-
-            return true;
+            if ($status < 500) {
+                return false;
+            }
         }
 
-        return false;
+        if ($request->getMethod() !== Method::GET) {
+            return false;
+        }
+
+        $this->sleeper->sleep(min(self::READ_BACKOFF, $this->maxWait));
+
+        return true;
+    }
+
+    /**
+     * Returns a copy that makes up to $tries attempts in total and never waits longer than $maxWait seconds.
+     *
+     * @throws ConfigurationException When $tries is below 1 or $maxWait is negative
+     */
+    public function withRetry(int $tries, float $maxWait = 3.0): static
+    {
+        if ($tries < 1 || $maxWait < 0) {
+            throw new ConfigurationException('Retry needs at least 1 attempt and a non-negative maximum wait.');
+        }
+
+        $copy = clone $this;
+        $copy->tries = $tries;
+        $copy->maxWait = $maxWait;
+
+        return $copy;
+    }
+
+    /**
+     * Returns a copy that makes one attempt. Typed exceptions still throw.
+     */
+    public function withoutRetry(): static
+    {
+        $copy = clone $this;
+        $copy->tries = 1;
+
+        return $copy;
     }
 
     public function links(): LinksResource

@@ -20,7 +20,8 @@ it('turns a dropped connection into a ConnectionException with no previous', fun
     ]);
 
     try {
-        TestClient::make($mock)->links()->get('x');
+        // Mapping, not retry: one mocked failure must be enough.
+        TestClient::make($mock)->withoutRetry()->links()->get('x');
     } catch (TrackToException $e) {
         expect($e)->toBeInstanceOf(ConnectionException::class)
             ->and($e->getPrevious())->toBeNull()
