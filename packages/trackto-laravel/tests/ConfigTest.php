@@ -217,6 +217,9 @@ it('caches config with no key set', function (): void {
     mkdir($dir);
 
     try {
+        // Larastan rebuilds the package manifest without the root package, so rebuild it the way `composer prepare` does.
+        (new Process([PHP_BINARY, 'vendor/bin/testbench', 'package:discover'], dirname(__DIR__, 3)))->mustRun();
+
         $process = new Process(
             [PHP_BINARY, 'vendor/bin/testbench', 'config:cache'],
             dirname(__DIR__, 3),
@@ -229,8 +232,7 @@ it('caches config with no key set', function (): void {
         /** @var array<string, array<string, mixed>> $cached */
         $cached = require $dir.'/config.php';
 
-        expect(array_key_exists('trackto', $cached))->toBeTrue($process->getOutput().$process->getErrorOutput().' keys: '.implode(',', array_keys($cached)))
-            ->and($cached['trackto']['api_key'])->toBeNull()
+        expect($cached['trackto']['api_key'])->toBeNull()
             ->and($cached['trackto']['base_url'])->toBe(TrackToClient::DEFAULT_BASE_URL)
             ->and($cached['trackto']['version'])->toBe(TrackToClient::DEFAULT_VERSION);
     } finally {
