@@ -9,7 +9,6 @@ use ExpertSystems\TrackTo\TrackToClient;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\PendingRequest;
-use Symfony\Component\Process\Process;
 
 const LARAVEL_CONFIG_ENV = [
     'TRACKTO_API_KEY',
@@ -233,31 +232,22 @@ it('surfaces the client constructor error for a base URL it rejects', function (
     expect(laravelConfigFailure()->getMessage())->toContain('https');
 });
 
-it('caches config with no key set', function (): void {
-    $dir = sys_get_temp_dir().'/trackto-config-cache-'.bin2hex(random_bytes(4));
-    mkdir($dir);
+it('keeps the config file serialisable the way config:cache writes it', function (): void {
+    // The real command boots a second skeleton app that needs a rebuilt package manifest, which would rewrite
+    // vendor/ state shared by every test, so write the array the way `config:cache` does and read it back.
+    $config = laravelConfigFromEnv([]);
+    $file = tempnam(sys_get_temp_dir(), 'trackto-config-cache-');
 
     try {
-        // Larastan rebuilds the package manifest without the root package, so rebuild it the way `composer prepare` does.
-        (new Process([PHP_BINARY, 'vendor/bin/testbench', 'package:discover'], dirname(__DIR__, 3)))->mustRun();
+        file_put_contents($file, '<?php return '.var_export($config, true).';'.PHP_EOL);
 
-        $process = new Process(
-            [PHP_BINARY, 'vendor/bin/testbench', 'config:cache'],
-            dirname(__DIR__, 3),
-            ['APP_CONFIG_CACHE' => $dir.'/config.php'] + array_fill_keys(LARAVEL_CONFIG_ENV, false),
-        );
-        $process->run();
+        expect(require $file)->toBe($config)
+            ->and($config['api_key'])->toBeNull()
+            ->and($config['base_url'])->toBe(TrackToClient::DEFAULT_BASE_URL)
+            ->and($config['version'])->toBe(TrackToClient::DEFAULT_VERSION);
 
-        expect($process->getExitCode())->toBe(0, $process->getOutput().$process->getErrorOutput());
-
-        /** @var array<string, array<string, mixed>> $cached */
-        $cached = require $dir.'/config.php';
-
-        expect($cached['trackto']['api_key'])->toBeNull()
-            ->and($cached['trackto']['base_url'])->toBe(TrackToClient::DEFAULT_BASE_URL)
-            ->and($cached['trackto']['version'])->toBe(TrackToClient::DEFAULT_VERSION);
+        array_walk_recursive($config, static fn (mixed $value) => expect($value === null || is_scalar($value))->toBeTrue());
     } finally {
-        @unlink($dir.'/config.php');
-        @rmdir($dir);
+        @unlink($file);
     }
 });
