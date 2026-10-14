@@ -18,6 +18,7 @@
     ],
     "require": {
         "php": "^8.4",
+        "composer-runtime-api": "^2.0",
         "saloonphp/pagination-plugin": "^2.3",
         "saloonphp/saloon": "^4.0"
     },
