@@ -4,13 +4,19 @@ Laravel integration for the track.to API. Supports Laravel 12 and 13 on PHP 8.4 
 
 This repository is a read-only split of [`expertsystemsau/trackto-php-sdk`](https://github.com/expertsystemsau/trackto-php-sdk). Open issues and pull requests there, not here.
 
+## Compatibility
+
+| Version | PHP | Laravel | track.to API (Track-Version) |
+| --- | --- | --- | --- |
+| 0.1.x | 8.4, 8.5 | 12, 13 | 2026-07-06 |
+
 ## Installation
 
 ```bash
 composer require expertsystemsau/trackto-laravel-client
 ```
 
-Available from the first tagged release. The service provider and the `TrackTo` facade are auto-discovered, so there is nothing to register.
+The service provider and the `TrackTo` facade are auto-discovered, so there is nothing to register.
 
 ## Configuration
 

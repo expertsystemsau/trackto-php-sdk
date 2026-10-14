@@ -16,9 +16,6 @@ use Saloon\Http\Response;
  */
 final class LinkIterator implements IteratorAggregate
 {
-    /** @internal Page hydrations in the most recent walk; tests observe single hydration through all() with it. */
-    public int $hydrations = 0;
-
     public function __construct(private readonly TrackToClient $client, private readonly ListLinksRequest $request) {}
 
     /**
@@ -31,16 +28,12 @@ final class LinkIterator implements IteratorAggregate
         $paginator = new LinksPaginator($this->client, $this->request);
 
         // Saloon's items() is typed as yielding responses, so walk the pages and read items through the cached page().
+        // Async pagination is never enabled on this paginator, so every element is a Response (Saloon's own items() narrows the same way).
+        /** @var Response $response */
         foreach ($paginator as $response) {
-            if (! $response instanceof Response) {
-                continue;
-            }
-
             foreach ($paginator->page($response)->items as $link) {
                 yield $link;
             }
-
-            $this->hydrations = $paginator->hydrations;
         }
     }
 }

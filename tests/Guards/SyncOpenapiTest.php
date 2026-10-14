@@ -115,4 +115,4 @@ it('creates spec/ as 0755 whatever the umask, and keeps it on a second sync', fu
 
     clearstatcache();
     expect($second)->toBe(0)->and(fileperms($root.'/spec') & 0o777)->toBe(0o755);
-})->with(['umask 000' => 0o000, 'umask 022' => 0o022]);
+})->with(['umask 000' => 0o000, 'umask 022' => 0o022, 'umask 077' => 0o077]);

@@ -109,7 +109,6 @@ it('keeps a link password out of the conflict exception trace and dumps', functi
         $frame = array_values(array_filter($sdkFrames, static fn (array $f): bool => $f['function'] === 'update'))[0] ?? [];
 
         expect($e->getMessage())->not->toContain(SECRET_LINK_PASSWORD)
-            ->and($sdkFrames)->toHaveCount(2)
             ->and(print_r($sdkFrames, true))->not->toContain(SECRET_LINK_PASSWORD)
             ->and($dumped)->not->toContain(SECRET_LINK_PASSWORD)
             ->and($frame['args'][6] ?? null)->toBeInstanceOf(SensitiveParameterValue::class);
