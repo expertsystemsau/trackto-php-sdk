@@ -1,0 +1,2737 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "track.to API",
+        "version": "2026-07-06"
+    },
+    "servers": [
+        {
+            "url": "https://api.track.to",
+            "description": "Production"
+        }
+    ],
+    "tags": [
+        {
+            "name": "Link"
+        },
+        {
+            "name": "Folder"
+        },
+        {
+            "name": "Tag"
+        }
+    ],
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "paths": {
+        "/folders": {
+            "get": {
+                "operationId": "folders.index",
+                "summary": "List the acting API key's team's folders by name, each with its link count",
+                "tags": [
+                    "Folder"
+                ],
+                "parameters": [
+                    {
+                        "name": "User-Agent",
+                        "in": "header",
+                        "required": true,
+                        "description": "Required on every request (R016); a missing or blank User-Agent is rejected with a 403 missing_user_agent error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Track-Version",
+                        "in": "header",
+                        "description": "Optional calendar API version (R014). Omitting it pins the request to the team's default version; an unrecognised value is rejected with a 400 unsupported_version error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `FolderResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/FolderResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1. Every team may make up to 100 requests per 1-second window, summed across all of its API keys.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window, in the form \"default\";r={remaining};t={seconds_until_reset}.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The Track-Version header value is not a registered API version.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No Authorization header was sent, or it did not carry a Bearer token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The User-Agent header was missing or blank (`missing_user_agent`, rejected by `RequireUserAgent` before authentication runs), or the Bearer token did not match any API key (`forbidden`). Inspect `name` to tell them apart.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No resource matches the given identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The request body failed validation; see `errors` for a field-level breakdown.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The team has exceeded its per-window request allowance.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "The number of seconds to wait before retrying, matching the current window's remaining time.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "An unexpected server error occurred.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "operationId": "folders.store",
+                "summary": "Create a folder for the acting API key's team",
+                "tags": [
+                    "Folder"
+                ],
+                "parameters": [
+                    {
+                        "name": "User-Agent",
+                        "in": "header",
+                        "required": true,
+                        "description": "Required on every request (R016); a missing or blank User-Agent is rejected with a 403 missing_user_agent error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Track-Version",
+                        "in": "header",
+                        "description": "Optional calendar API version (R014). Omitting it pins the request to the team's default version; an unrecognised value is rejected with a 400 unsupported_version error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateFolderRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`FolderResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/FolderResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1. Every team may make up to 100 requests per 1-second window, summed across all of its API keys.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window, in the form \"default\";r={remaining};t={seconds_until_reset}.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The request body failed validation; see `errors` for a field-level breakdown.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The Track-Version header value is not a registered API version.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No Authorization header was sent, or it did not carry a Bearer token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The User-Agent header was missing or blank (`missing_user_agent`, rejected by `RequireUserAgent` before authentication runs), or the Bearer token did not match any API key (`forbidden`). Inspect `name` to tell them apart.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No resource matches the given identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The team has exceeded its per-window request allowance.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "The number of seconds to wait before retrying, matching the current window's remaining time.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "An unexpected server error occurred.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/folders/{folder}": {
+            "delete": {
+                "operationId": "folders.destroy",
+                "summary": "Delete a folder, refused with a 422 while it still holds links",
+                "tags": [
+                    "Folder"
+                ],
+                "parameters": [
+                    {
+                        "name": "folder",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "User-Agent",
+                        "in": "header",
+                        "required": true,
+                        "description": "Required on every request (R016); a missing or blank User-Agent is rejected with a 403 missing_user_agent error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Track-Version",
+                        "in": "header",
+                        "description": "Optional calendar API version (R014). Omitting it pins the request to the team's default version; an unrecognised value is rejected with a 400 unsupported_version error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content",
+                        "headers": {
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1. Every team may make up to 100 requests per 1-second window, summed across all of its API keys.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window, in the form \"default\";r={remaining};t={seconds_until_reset}.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The request body failed validation; see `errors` for a field-level breakdown.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The Track-Version header value is not a registered API version.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No Authorization header was sent, or it did not carry a Bearer token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The User-Agent header was missing or blank (`missing_user_agent`, rejected by `RequireUserAgent` before authentication runs), or the Bearer token did not match any API key (`forbidden`). Inspect `name` to tell them apart.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No resource matches the given identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The team has exceeded its per-window request allowance.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "The number of seconds to wait before retrying, matching the current window's remaining time.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "An unexpected server error occurred.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/links/bulk": {
+            "post": {
+                "operationId": "links.bulk",
+                "description": "Repeated slugs collapse to one. If any slug matches no link on the key's team the request is\nrefused with 404 and `errors.slugs` lists every such slug. If the acting user may not manage\nany one named link it is refused with 403. `move` requires `folder_id` (null unfiles); `tag`\nadds tags without removing existing ones and refuses with 422 if any link would exceed 5\ntags. In every refusal nothing changes.",
+                "summary": "Move, tag or delete up to 100 links by slug in one all-or-nothing request",
+                "tags": [
+                    "Link"
+                ],
+                "parameters": [
+                    {
+                        "name": "User-Agent",
+                        "in": "header",
+                        "required": true,
+                        "description": "Required on every request (R016); a missing or blank User-Agent is rejected with a 403 missing_user_agent error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Track-Version",
+                        "in": "header",
+                        "description": "Optional calendar API version (R014). Omitting it pins the request to the team's default version; an unrecognised value is rejected with a 400 unsupported_version error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BulkLinkRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Every named link was updated.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "action": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "move",
+                                                        "tag",
+                                                        "delete"
+                                                    ]
+                                                },
+                                                "slugs": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "action",
+                                                "slugs"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1. Every team may make up to 100 requests per 1-second window, summed across all of its API keys.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window, in the form \"default\";r={remaining};t={seconds_until_reset}.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The request body failed validation; see `errors` for a field-level breakdown.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The Track-Version header value is not a registered API version.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No Authorization header was sent, or it did not carry a Bearer token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The User-Agent header was missing or blank (`missing_user_agent`, rejected by `RequireUserAgent` before authentication runs), or the Bearer token did not match any API key (`forbidden`). A third case also returns `forbidden`: the API key authenticated successfully but the acting user does not manage this link (they are neither its owner nor a team admin). Because that case and an unmatched token share the `forbidden` code, use `message` rather than `name` to distinguish them — re-authenticating will not resolve a policy denial. On `POST /links/bulk` the check runs for every named link before anything changes, so one unmanageable link refuses the whole request.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "One or more named slugs match no link on the key's team (another team's slugs are reported exactly like unknown ones); `errors.slugs` lists every one and nothing was changed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The team has exceeded its per-window request allowance.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "The number of seconds to wait before retrying, matching the current window's remaining time.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "An unexpected server error occurred.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/tags": {
+            "get": {
+                "operationId": "tags.index",
+                "summary": "List the acting API key's team's tags by name, each with its colour and link count",
+                "tags": [
+                    "Tag"
+                ],
+                "parameters": [
+                    {
+                        "name": "User-Agent",
+                        "in": "header",
+                        "required": true,
+                        "description": "Required on every request (R016); a missing or blank User-Agent is rejected with a 403 missing_user_agent error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Track-Version",
+                        "in": "header",
+                        "description": "Optional calendar API version (R014). Omitting it pins the request to the team's default version; an unrecognised value is rejected with a 400 unsupported_version error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `TagResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TagResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1. Every team may make up to 100 requests per 1-second window, summed across all of its API keys.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window, in the form \"default\";r={remaining};t={seconds_until_reset}.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The Track-Version header value is not a registered API version.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No Authorization header was sent, or it did not carry a Bearer token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The User-Agent header was missing or blank (`missing_user_agent`, rejected by `RequireUserAgent` before authentication runs), or the Bearer token did not match any API key (`forbidden`). Inspect `name` to tell them apart.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No resource matches the given identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The request body failed validation; see `errors` for a field-level breakdown.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The team has exceeded its per-window request allowance.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "The number of seconds to wait before retrying, matching the current window's remaining time.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "An unexpected server error occurred.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "operationId": "tags.store",
+                "summary": "Create a tag for the acting API key's team, auto-coloured from the palette when no colour is given",
+                "tags": [
+                    "Tag"
+                ],
+                "parameters": [
+                    {
+                        "name": "User-Agent",
+                        "in": "header",
+                        "required": true,
+                        "description": "Required on every request (R016); a missing or blank User-Agent is rejected with a 403 missing_user_agent error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Track-Version",
+                        "in": "header",
+                        "description": "Optional calendar API version (R014). Omitting it pins the request to the team's default version; an unrecognised value is rejected with a 400 unsupported_version error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateTagRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`TagResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/TagResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1. Every team may make up to 100 requests per 1-second window, summed across all of its API keys.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window, in the form \"default\";r={remaining};t={seconds_until_reset}.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The request body failed validation; see `errors` for a field-level breakdown.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The Track-Version header value is not a registered API version.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No Authorization header was sent, or it did not carry a Bearer token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The User-Agent header was missing or blank (`missing_user_agent`, rejected by `RequireUserAgent` before authentication runs), or the Bearer token did not match any API key (`forbidden`). Inspect `name` to tell them apart.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No resource matches the given identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The team has exceeded its per-window request allowance.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "The number of seconds to wait before retrying, matching the current window's remaining time.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "An unexpected server error occurred.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/tags/{tag}": {
+            "delete": {
+                "operationId": "tags.destroy",
+                "summary": "Delete a tag, detaching it from every link",
+                "tags": [
+                    "Tag"
+                ],
+                "parameters": [
+                    {
+                        "name": "tag",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "User-Agent",
+                        "in": "header",
+                        "required": true,
+                        "description": "Required on every request (R016); a missing or blank User-Agent is rejected with a 403 missing_user_agent error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Track-Version",
+                        "in": "header",
+                        "description": "Optional calendar API version (R014). Omitting it pins the request to the team's default version; an unrecognised value is rejected with a 400 unsupported_version error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content",
+                        "headers": {
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1. Every team may make up to 100 requests per 1-second window, summed across all of its API keys.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window, in the form \"default\";r={remaining};t={seconds_until_reset}.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The Track-Version header value is not a registered API version.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No Authorization header was sent, or it did not carry a Bearer token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The User-Agent header was missing or blank (`missing_user_agent`, rejected by `RequireUserAgent` before authentication runs), or the Bearer token did not match any API key (`forbidden`). Inspect `name` to tell them apart.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No resource matches the given identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The request body failed validation; see `errors` for a field-level breakdown.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The team has exceeded its per-window request allowance.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "The number of seconds to wait before retrying, matching the current window's remaining time.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "An unexpected server error occurred.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/links": {
+            "get": {
+                "operationId": "links.index",
+                "summary": "List the acting API key's team's links, filtered by folder or tag, searched by slug or destination, and sorted by recent, clicks or name",
+                "tags": [
+                    "Link"
+                ],
+                "parameters": [
+                    {
+                        "name": "folder",
+                        "in": "query",
+                        "description": "Only links filed in this folder. A non-numeric value is ignored; another team's folder id returns an empty page.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "tag",
+                        "in": "query",
+                        "description": "Only links carrying this tag. A non-numeric value is ignored; another team's tag id returns an empty page.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "Case-insensitive substring match on slug or destination_url. % and _ match literally.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "recent (newest first), clicks (all-time clicks, most first) or name (slug A–Z). Ties break newest first. Unknown values fall back to recent.",
+                        "schema": {
+                            "type": "string",
+                            "default": "recent"
+                        },
+                        "example": "clicks"
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Links per page, 1–100.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 25
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "User-Agent",
+                        "in": "header",
+                        "required": true,
+                        "description": "Required on every request (R016); a missing or blank User-Agent is rejected with a 403 missing_user_agent error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Track-Version",
+                        "in": "header",
+                        "description": "Optional calendar API version (R014). Omitting it pins the request to the team's default version; an unrecognised value is rejected with a 400 unsupported_version error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `LinkResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/LinkResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1. Every team may make up to 100 requests per 1-second window, summed across all of its API keys.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window, in the form \"default\";r={remaining};t={seconds_until_reset}.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The Track-Version header value is not a registered API version.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No Authorization header was sent, or it did not carry a Bearer token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The User-Agent header was missing or blank (`missing_user_agent`, rejected by `RequireUserAgent` before authentication runs), or the Bearer token did not match any API key (`forbidden`). Inspect `name` to tell them apart.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No resource matches the given identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The request body failed validation; see `errors` for a field-level breakdown.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The team has exceeded its per-window request allowance.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "The number of seconds to wait before retrying, matching the current window's remaining time.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "An unexpected server error occurred.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "operationId": "links.store",
+                "summary": "Create a new short link for the acting API key's team",
+                "tags": [
+                    "Link"
+                ],
+                "parameters": [
+                    {
+                        "name": "User-Agent",
+                        "in": "header",
+                        "required": true,
+                        "description": "Required on every request (R016); a missing or blank User-Agent is rejected with a 403 missing_user_agent error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Track-Version",
+                        "in": "header",
+                        "description": "Optional calendar API version (R014). Omitting it pins the request to the team's default version; an unrecognised value is rejected with a 400 unsupported_version error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreLinkRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`LinkResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/LinkResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1. Every team may make up to 100 requests per 1-second window, summed across all of its API keys.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window, in the form \"default\";r={remaining};t={seconds_until_reset}.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The request body failed validation; see `errors` for a field-level breakdown.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The Track-Version header value is not a registered API version.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No Authorization header was sent, or it did not carry a Bearer token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The User-Agent header was missing or blank (`missing_user_agent`, rejected by `RequireUserAgent` before authentication runs), or the Bearer token did not match any API key (`forbidden`). Inspect `name` to tell them apart.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No resource matches the given identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The team has exceeded its per-window request allowance.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "The number of seconds to wait before retrying, matching the current window's remaining time.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "An unexpected server error occurred.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/links/{link}": {
+            "get": {
+                "operationId": "links.show",
+                "summary": "Show a single link scoped to the acting API key's team",
+                "tags": [
+                    "Link"
+                ],
+                "parameters": [
+                    {
+                        "name": "link",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "User-Agent",
+                        "in": "header",
+                        "required": true,
+                        "description": "Required on every request (R016); a missing or blank User-Agent is rejected with a 403 missing_user_agent error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Track-Version",
+                        "in": "header",
+                        "description": "Optional calendar API version (R014). Omitting it pins the request to the team's default version; an unrecognised value is rejected with a 400 unsupported_version error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`LinkResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/LinkResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1. Every team may make up to 100 requests per 1-second window, summed across all of its API keys.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window, in the form \"default\";r={remaining};t={seconds_until_reset}.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The Track-Version header value is not a registered API version.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No Authorization header was sent, or it did not carry a Bearer token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The User-Agent header was missing or blank (`missing_user_agent`, rejected by `RequireUserAgent` before authentication runs), or the Bearer token did not match any API key (`forbidden`). Inspect `name` to tell them apart.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No resource matches the given identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The request body failed validation; see `errors` for a field-level breakdown.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The team has exceeded its per-window request allowance.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "The number of seconds to wait before retrying, matching the current window's remaining time.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "An unexpected server error occurred.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "links.update",
+                "summary": "Update a link scoped to the acting API key's team",
+                "tags": [
+                    "Link"
+                ],
+                "parameters": [
+                    {
+                        "name": "link",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "User-Agent",
+                        "in": "header",
+                        "required": true,
+                        "description": "Required on every request (R016); a missing or blank User-Agent is rejected with a 403 missing_user_agent error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Track-Version",
+                        "in": "header",
+                        "description": "Optional calendar API version (R014). Omitting it pins the request to the team's default version; an unrecognised value is rejected with a 400 unsupported_version error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateLinkRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`LinkResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/LinkResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1. Every team may make up to 100 requests per 1-second window, summed across all of its API keys.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window, in the form \"default\";r={remaining};t={seconds_until_reset}.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The request body failed validation; see `errors` for a field-level breakdown.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The Track-Version header value is not a registered API version.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No Authorization header was sent, or it did not carry a Bearer token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The User-Agent header was missing or blank (`missing_user_agent`, rejected by `RequireUserAgent` before authentication runs), or the Bearer token did not match any API key (`forbidden`). A third case also returns `forbidden`: the API key authenticated successfully but the acting user does not manage this link (they are neither its owner nor a team admin). Because that case and an unmatched token share the `forbidden` code, use `message` rather than `name` to distinguish them — re-authenticating will not resolve a policy denial.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No resource matches the given identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The team has exceeded its per-window request allowance.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "The number of seconds to wait before retrying, matching the current window's remaining time.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "An unexpected server error occurred.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "links.destroy",
+                "summary": "Delete a link scoped to the acting API key's team",
+                "tags": [
+                    "Link"
+                ],
+                "parameters": [
+                    {
+                        "name": "link",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "User-Agent",
+                        "in": "header",
+                        "required": true,
+                        "description": "Required on every request (R016); a missing or blank User-Agent is rejected with a 403 missing_user_agent error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Track-Version",
+                        "in": "header",
+                        "description": "Optional calendar API version (R014). Omitting it pins the request to the team's default version; an unrecognised value is rejected with a 400 unsupported_version error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content",
+                        "headers": {
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1. Every team may make up to 100 requests per 1-second window, summed across all of its API keys.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window, in the form \"default\";r={remaining};t={seconds_until_reset}.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The Track-Version header value is not a registered API version.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No Authorization header was sent, or it did not carry a Bearer token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The User-Agent header was missing or blank (`missing_user_agent`, rejected by `RequireUserAgent` before authentication runs), or the Bearer token did not match any API key (`forbidden`). A third case also returns `forbidden`: the API key authenticated successfully but the acting user does not manage this link (they are neither its owner nor a team admin). Because that case and an unmatched token share the `forbidden` code, use `message` rather than `name` to distinguish them — re-authenticating will not resolve a policy denial.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No resource matches the given identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The request body failed validation; see `errors` for a field-level breakdown.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The team has exceeded its per-window request allowance.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "The number of seconds to wait before retrying, matching the current window's remaining time.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "An unexpected server error occurred.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/links/{link}/analytics": {
+            "get": {
+                "operationId": "links.analytics",
+                "summary": "Show click analytics aggregates for a link scoped to the acting API key's team",
+                "tags": [
+                    "Link"
+                ],
+                "parameters": [
+                    {
+                        "name": "link",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "User-Agent",
+                        "in": "header",
+                        "required": true,
+                        "description": "Required on every request (R016); a missing or blank User-Agent is rejected with a 403 missing_user_agent error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Track-Version",
+                        "in": "header",
+                        "description": "Optional calendar API version (R014). Omitting it pins the request to the team's default version; an unrecognised value is rejected with a 400 unsupported_version error.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "link": {
+                                            "$ref": "#/components/schemas/LinkResource"
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                        },
+                                        "overTime": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "date": {
+                                                        "type": "string"
+                                                    },
+                                                    "count": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "date",
+                                                    "count"
+                                                ]
+                                            }
+                                        },
+                                        "topReferrers": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "label": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "string"
+                                                            },
+                                                            {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "Direct"
+                                                                ]
+                                                            }
+                                                        ]
+                                                    },
+                                                    "count": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "label",
+                                                    "count"
+                                                ]
+                                            }
+                                        },
+                                        "topCountries": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "label": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "string"
+                                                            },
+                                                            {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "Unknown"
+                                                                ]
+                                                            }
+                                                        ]
+                                                    },
+                                                    "count": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "label",
+                                                    "count"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "link",
+                                        "total",
+                                        "overTime",
+                                        "topReferrers",
+                                        "topCountries"
+                                    ]
+                                }
+                            }
+                        },
+                        "headers": {
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1. Every team may make up to 100 requests per 1-second window, summed across all of its API keys.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window, in the form \"default\";r={remaining};t={seconds_until_reset}.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The Track-Version header value is not a registered API version.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No Authorization header was sent, or it did not carry a Bearer token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The User-Agent header was missing or blank (`missing_user_agent`, rejected by `RequireUserAgent` before authentication runs), or the Bearer token did not match any API key (`forbidden`). Inspect `name` to tell them apart.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No resource matches the given identifier.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The request body failed validation; see `errors` for a field-level breakdown.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "The team has exceeded its per-window request allowance.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "description": "The number of seconds to wait before retrying, matching the current window's remaining time.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit-Policy": {
+                                "description": "The per-team rate-limit policy: \"default\";q=100;w=1.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "RateLimit": {
+                                "description": "The team's current rate-limit consumption for the active window.",
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "An unexpected server error occurred.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer"
+            }
+        },
+        "schemas": {
+            "ApiError": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "A stable, machine-readable error identifier. One of: validation_error, unauthorized, forbidden, missing_user_agent, unsupported_version, not_found, rate_limited, server_error, team_suspended, bad_request."
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "A human-readable description of the error."
+                    },
+                    "statusCode": {
+                        "type": "integer",
+                        "description": "The HTTP status code, duplicated in the response body for callers that only inspect the payload."
+                    },
+                    "errors": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "Field-level validation messages when `name` is `validation_error`; on `POST /links/bulk`'s `not_found`, `errors.slugs` lists the slugs that matched no link."
+                    }
+                },
+                "required": [
+                    "name",
+                    "message",
+                    "statusCode"
+                ],
+                "title": "ApiError"
+            },
+            "BulkLinkRequest": {
+                "type": "object",
+                "description": "Validates the shape of a bulk move / tag / delete request addressed by slug.\n\nLink ownership is not a shape concern: it is enforced downstream by\nLinkPolicy in the controller. The folder is the one team-scoped lookup done\nhere, so a foreign folder id fails exactly like an unknown one.",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": [
+                            "move",
+                            "tag",
+                            "delete"
+                        ]
+                    },
+                    "slugs": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9_-]{1,64}$"
+                        },
+                        "minItems": 1,
+                        "maxItems": 100
+                    },
+                    "folder_id": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "maxLength": 50
+                        },
+                        "maxItems": 5
+                    }
+                },
+                "required": [
+                    "action",
+                    "slugs"
+                ],
+                "title": "BulkLinkRequest"
+            },
+            "CreateFolderRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "title": "CreateFolderRequest"
+            },
+            "CreateTagRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 50
+                    },
+                    "color": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^#[0-9a-fA-F]{6}$"
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "title": "CreateTagRequest"
+            },
+            "FolderResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "links_count": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "links_count"
+                ],
+                "title": "FolderResource"
+            },
+            "LinkResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "destination_url": {
+                        "type": "string"
+                    },
+                    "short_url": {
+                        "type": "string"
+                    },
+                    "expires_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "folder": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "id": {
+                                "type": "integer"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "name"
+                        ]
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/LinkTagResource"
+                        }
+                    },
+                    "has_password": {
+                        "type": "boolean"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/LinkStatus"
+                    },
+                    "click_count": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "id",
+                    "slug",
+                    "destination_url",
+                    "short_url",
+                    "expires_at",
+                    "created_at",
+                    "folder",
+                    "tags",
+                    "has_password",
+                    "status",
+                    "click_count"
+                ],
+                "title": "LinkResource"
+            },
+            "LinkStatus": {
+                "type": "string",
+                "description": "A link's lifecycle state, derived worst-first by Link::status(). These values are a published API contract once the links API ships them: adding a case is additive, renaming or removing one is breaking.\n",
+                "enum": [
+                    "active",
+                    "expiring",
+                    "password",
+                    "expired"
+                ],
+                "title": "LinkStatus"
+            },
+            "LinkTagResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "color": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "color"
+                ],
+                "title": "LinkTagResource"
+            },
+            "StoreLinkRequest": {
+                "type": "object",
+                "properties": {
+                    "destination_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 2048
+                    },
+                    "slug": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "expires_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "password": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 6,
+                        "maxLength": 255
+                    },
+                    "folder_id": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "tags": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string",
+                            "maxLength": 50
+                        },
+                        "maxItems": 5
+                    }
+                },
+                "required": [
+                    "destination_url"
+                ],
+                "title": "StoreLinkRequest"
+            },
+            "TagResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "color": {
+                        "type": "string"
+                    },
+                    "links_count": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "color",
+                    "links_count"
+                ],
+                "title": "TagResource"
+            },
+            "UpdateLinkRequest": {
+                "type": "object",
+                "properties": {
+                    "destination_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 2048
+                    },
+                    "slug": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "expires_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "password": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 6,
+                        "maxLength": 255
+                    },
+                    "remove_password": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "folder_id": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "maxLength": 50
+                        },
+                        "maxItems": 5
+                    }
+                },
+                "required": [
+                    "destination_url"
+                ],
+                "title": "UpdateLinkRequest"
+            }
+        },
+        "responses": {
+            "ValidationException": {
+                "description": "Validation error",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Errors overview."
+                                },
+                                "errors": {
+                                    "type": "object",
+                                    "description": "A detailed description of each field that failed validation.",
+                                    "additionalProperties": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            "required": [
+                                "message",
+                                "errors"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
