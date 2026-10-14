@@ -18,6 +18,8 @@
     ],
     "require": {
         "php": "^8.4",
+        "expertsystemsau/trackto-php-client": "^0.1",
+        "illuminate/console": "^12.0||^13.0",
         "illuminate/support": "^12.0||^13.0"
     },
     "autoload": {
@@ -29,7 +31,10 @@
         "laravel": {
             "providers": [
                 "ExpertSystems\\TrackTo\\Laravel\\TrackToServiceProvider"
-            ]
+            ],
+            "aliases": {
+                "TrackTo": "ExpertSystems\\TrackTo\\Laravel\\Facades\\TrackTo"
+            }
         }
     },
     "config": {

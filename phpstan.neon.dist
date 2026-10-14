@@ -3,6 +3,8 @@ parameters:
     paths:
         - packages/trackto-client/src
         - packages/trackto-laravel/src
+        - packages/trackto-laravel/tests/Static/FacadeUsage.php
+    checkOctaneCompatibility: true
     tmpDir: build/phpstan
     phpVersion:
         min: 80400

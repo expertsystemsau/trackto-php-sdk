@@ -285,6 +285,18 @@ $client = $client->withMockClient(new MockClient([
 ]));
 ```
 
+## Laravel
+
+The Laravel package binds one immutable `TrackToClient` in the container, built from `config/trackto.php` the first time it is resolved. A missing API key fails then, not at boot. Per-call changes go through `with*()`, which returns a copy and leaves the shared client alone.
+
+```php
+public static function fake(array $responses = []): MockClient
+```
+
+`TrackTo::fake()` returns Saloon's `MockClient`. It swaps a client carrying that mock into the facade and the container, using a placeholder key when none is configured. Call it before the code under test resolves the client, because an object that already stored the real client keeps it.
+
+The config file has six keys: `api_key`, `base_url`, `version`, `connect_timeout`, `timeout` and `user_agent_suffix`. Blank optional values fall back to the SDK defaults.
+
 ## Security notes
 
 The API key is held as a `SensitiveParameterValue`. `var_dump`, `print_r` and `__debugInfo` omit it, and `serialize()` throws.

@@ -47,7 +47,21 @@ it('keeps the client framework-free', function (): void {
 });
 
 it('pins the Laravel package illuminate constraint', function (): void {
-    expect(manifest('packages/trackto-laravel/composer.json')['require']['illuminate/support'])->toBe('^12.0||^13.0');
+    $require = manifest('packages/trackto-laravel/composer.json')['require'];
+
+    expect($require['illuminate/support'])->toBe('^12.0||^13.0')
+        ->and($require['illuminate/console'])->toBe('^12.0||^13.0')
+        ->and($require['expertsystemsau/trackto-php-client'])->toBe('^0.1')
+        ->and(manifest('composer.json')['require']['illuminate/console'])->toBe('^12.0||^13.0');
+});
+
+it('discovers the same provider and only the TrackTo alias from both manifests', function (): void {
+    $root = manifest('composer.json')['extra']['laravel'];
+    $package = manifest('packages/trackto-laravel/composer.json')['extra']['laravel'];
+
+    expect($root)->toBe($package)
+        ->and($package['providers'])->toBe(['ExpertSystems\\TrackTo\\Laravel\\TrackToServiceProvider'])
+        ->and($package['aliases'])->toBe(['TrackTo' => 'ExpertSystems\\TrackTo\\Laravel\\Facades\\TrackTo']);
 });
 
 it('passes composer validate --strict', function (string $path): void {
