@@ -111,7 +111,7 @@ API exceptions expose:
 | --- | --- |
 | `status()` | The HTTP status |
 | `getMessage()` | The envelope's message |
-| `errors()` | Field errors as `field => list of messages` |
+| `errors()` | Field errors as `field => list of messages`, bounded like the message: each string is cut at 500 characters, and at most 100 fields and 100 entries per field are kept (nested lists are bounded the same way) |
 | `errorsFor($field)` | The messages for one field, or an empty list |
 | `rateLimit()` | A `RateLimitInfo` |
 | `response()` | The Saloon `Response` |

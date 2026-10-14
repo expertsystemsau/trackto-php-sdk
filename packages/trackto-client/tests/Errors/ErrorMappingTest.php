@@ -76,3 +76,22 @@ it('caps every string field-error message like the message, leaving other entrie
         ->and($e->errors()['slug'][1])->toBe(str_repeat("\u{1F600}", 500))
         ->and($e->errors()['slug'][2])->toBe('short');
 });
+
+it('caps scalar, nested and oversized field errors too', function (): void {
+    $errors = ['url' => str_repeat('a', 2000), 'deep' => [['x' => str_repeat('b', 501)]]];
+    foreach (range(1, 150) as $i) {
+        $errors["f$i"] = ['bad'];
+    }
+    $e = TestClient::failure(Fixtures::errorResponse('validation_error', errors: $errors));
+
+    expect($e->errors()['url'])->toBe(str_repeat('a', 500))
+        ->and($e->errors()['deep'][0]['x'])->toBe(str_repeat('b', 500))
+        ->and($e->errors())->toHaveCount(100)
+        ->and($e->errorsFor('url'))->toBe([]);
+});
+
+it('keeps only 100 messages per field', function (): void {
+    $e = TestClient::failure(Fixtures::errorResponse('validation_error', errors: ['many' => range(1, 150)]));
+
+    expect($e->errors()['many'])->toHaveCount(100);
+});

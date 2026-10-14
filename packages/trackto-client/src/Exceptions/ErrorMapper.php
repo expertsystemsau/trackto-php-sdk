@@ -27,6 +27,8 @@ final class ErrorMapper
         'bad_request' => BadRequestException::class,
     ];
 
+    private const int MAX_ENTRIES = 100;
+
     public static function map(Response $response): ApiException
     {
         $status = $response->status();
@@ -50,17 +52,21 @@ final class ErrorMapper
 
         $message = self::cap($message);
 
-        $errors = is_array($body['errors'] ?? null) ? $body['errors'] : [];
-
-        foreach ($errors as $field => $messages) {
-            if (is_array($messages)) {
-                $errors[$field] = array_map(static fn (mixed $entry): mixed => is_string($entry) ? self::cap($entry) : $entry, $messages);
-            }
-        }
+        $errors = is_array($body['errors'] ?? null) ? self::capValue($body['errors']) : [];
 
         $class = self::BY_NAME[$name] ?? self::fallback($status);
 
         return new $class($response, $message, $errors);
+    }
+
+    /** Bounds hostile field errors like the message: strings at 500 characters, every list or map at 100 entries, nested to any depth. */
+    private static function capValue(mixed $value): mixed
+    {
+        return match (true) {
+            is_string($value) => self::cap($value),
+            is_array($value) => array_map(self::capValue(...), array_slice($value, 0, self::MAX_ENTRIES, true)),
+            default => $value,
+        };
     }
 
     /** Characters, not bytes, and no mbstring requirement; the byte cut is the fallback that keeps the cap. */
