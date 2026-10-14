@@ -17,6 +17,8 @@ use ExpertSystems\TrackTo\Support\Omitted;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionParameter;
+use ReflectionType;
+use ReflectionUnionType;
 use RuntimeException;
 
 /**
@@ -480,6 +482,20 @@ final class Checks
         );
     }
 
+    /** True for `int`, `?int` and any union with an `int` member; a class whose name merely contains "int" is not. */
+    public static function isIntType(?ReflectionType $type): bool
+    {
+        $members = $type instanceof ReflectionUnionType ? $type->getTypes() : [$type];
+
+        foreach ($members as $member) {
+            if ($member instanceof ReflectionNamedType && $member->getName() === 'int') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static function synthesise(ReflectionParameter $parameter): mixed
     {
         $type = $parameter->getType();
@@ -488,7 +504,7 @@ final class Checks
             $default = $parameter->getDefaultValue();
 
             // An Omitted id is what BulkLinksRequest::Move rejects, so an int-or-Omitted parameter gets a plain id.
-            return $default === Omitted::Value && str_contains((string) $type, 'int') ? 1 : $default;
+            return $default === Omitted::Value && self::isIntType($type) ? 1 : $default;
         }
 
         $name = $type instanceof ReflectionNamedType ? $type->getName() : 'string';
