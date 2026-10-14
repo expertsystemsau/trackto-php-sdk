@@ -92,3 +92,42 @@ it('runs type coverage in one forked worker', function (): void {
 
     expect($putenv)->toBeInt()->and($coverage)->toBeInt()->and($putenv)->toBeLessThan($coverage);
 });
+
+/**
+ * @return list<string> the `##` headings that break the changelog shape
+ */
+function changelogHeadingProblems(string $changelog): array
+{
+    preg_match_all('/^## .*$/m', $changelog, $matches);
+    $headings = $matches[0];
+    $problems = [];
+
+    if ($headings === [] || ! str_contains($headings[0], '[Unreleased]')) {
+        $problems[] = 'first heading must be [Unreleased]';
+    }
+
+    foreach (array_slice($headings, 1) as $heading) {
+        if (preg_match('/^## v\d+\.\d+\.\d+ - \d{4}-\d{2}-\d{2}$/', $heading) !== 1) {
+            $problems[] = $heading;
+        }
+    }
+
+    return $problems;
+}
+
+it('keeps the changelog headings in the release shape', function (): void {
+    $changelog = (string) file_get_contents(dirname(__DIR__).'/CHANGELOG.md');
+
+    expect(changelogHeadingProblems($changelog))->toBe([])
+        ->and(preg_match('/^## v0\.1\.0 - /m', $changelog))->toBe(1);
+});
+
+it('rejects changelog headings outside the release shape', function (string $changelog): void {
+    expect(changelogHeadingProblems($changelog))->not->toBe([]);
+})->with([
+    'pre-release suffix' => "## [Unreleased](x)\n\n## v0.1.0-rc.1 - 2026-10-14\n",
+    'missing date' => "## [Unreleased](x)\n\n## v0.1.0\n",
+    'no v prefix' => "## [Unreleased](x)\n\n## 0.1.0 - 2026-10-14\n",
+    'unreleased not first' => "## v0.1.0 - 2026-10-14\n\n## [Unreleased](x)\n",
+    'no unreleased' => "# Release Notes\n",
+]);
