@@ -123,13 +123,14 @@ function conventionsReflectedDefault(ReflectionParameter $parameter): ?string
 
 /**
  * Compares every `public function` block in $doc with reflection: parameter names, order, types and defaults.
- * shortcut: a comma inside a default would split wrongly; no documented default has one, split properly if one appears.
+ * shortcut: a comma or a `)` inside a quoted default would split wrongly, and parentheses nest one level only (`new Foo()` works);
+ * no documented default has either, tokenize with PhpToken if one appears.
  *
  * @return list<string> One line per mismatch; empty when the doc matches the code.
  */
 function conventionsSignatureMismatches(string $doc): array
 {
-    preg_match_all('/public (?:static )?function (\w+)\((.*?)\)(?::\s*[\w\\\\|?]+)?;/s', $doc, $blocks, PREG_SET_ORDER);
+    preg_match_all('/public (?:static )?function (\w+)\(((?:[^()]|\([^()]*\))*)\)(?::\s*[\w\\\\|?]+)?;/s', $doc, $blocks, PREG_SET_ORDER);
 
     $problems = $blocks === [] ? ['no public function block found'] : [];
 
@@ -177,13 +178,47 @@ function conventionsSignatureMismatches(string $doc): array
 }
 
 /**
+ * Blanks string literals (underscores) and comments (spaces), keeping every offset, so bracket and comma scanning cannot be fooled by them.
+ */
+function conventionsMaskLiterals(string $code): string
+{
+    $out = '';
+    $length = strlen($code);
+
+    for ($i = 0; $i < $length; $i++) {
+        $char = $code[$i];
+        $two = substr($code, $i, 2);
+
+        if ($char === '\'' || $char === '"') {
+            $end = $i + 1;
+
+            while ($end < $length && $code[$end] !== $char) {
+                $end += $code[$end] === '\\' ? 2 : 1;
+            }
+
+            $end = min($end, $length - 1);
+            $out .= $char.str_repeat('_', max(0, $end - $i - 1)).$code[$end];
+            $i = $end;
+        } elseif ($two === '//' || $two === '/*') {
+            $end = $two === '//' ? (strpos($code, "\n", $i) ?: $length) : (($close = strpos($code, '*/', $i + 2)) === false ? $length : $close + 2);
+            $out .= str_repeat(' ', $end - $i);
+            $i = $end - 1;
+        } else {
+            $out .= $char;
+        }
+    }
+
+    return $out;
+}
+
+/**
  * Parameter names a call passes by name, or null for an argument that is positional.
  *
  * @return list<string|null>
  */
 function conventionsCallArguments(string $code, string $call): array
 {
-    $code = (string) preg_replace('~(?<!:)//[^\n]*~', '', $code);
+    $code = conventionsMaskLiterals($code);
     $found = [];
     $offset = 0;
 
@@ -463,20 +498,28 @@ it('keeps undecided wording out of the conventions', function (): void {
 it('calls the client only with named arguments that exist, in the client README', function (): void {
     $readme = (string) file_get_contents(dirname(__DIR__).'/packages/trackto-client/README.md');
     $blocks = conventionsPhpBlocks($readme);
-    $checked = 0;
+    $checked = [];
 
-    foreach (conventionsCalls() as [$call, $class, $method]) {
+    foreach (conventionsCalls() as $label => [$call, $class, $method]) {
         $valid = conventionsParameters(new ReflectionMethod($class, $method));
 
         foreach ($blocks as $block) {
             foreach (conventionsCallArguments($block, $call) as $name) {
-                $checked++;
+                $checked[$label] = ($checked[$label] ?? 0) + 1;
                 expect($name)->toBeIn($valid, "{$call} in the README passes an argument that is positional or not a parameter of {$method}().");
             }
         }
     }
 
-    expect($checked)->toBeGreaterThan(4);
+    // Pinned per call: a README edit that adds or drops a call must update this on purpose.
+    expect($checked)->toBe(['client constructor' => 1, 'links list' => 2, 'links create' => 2, 'folders create' => 1, 'tags create' => 1]);
+});
+
+it('scans arguments without being fooled by brackets, commas or slashes inside strings', function (): void {
+    $code = "\$c->links()->create(url: 'https://cdn.example/a(b,c]', slug: \"x,y\", // note (\n tags: ['a, b']);";
+
+    expect(conventionsCallArguments($code, 'links()->create('))->toBe(['url', 'slug', 'tags'])
+        ->and(conventionsCallArguments("\$c->links()->create('a', 'b');", 'links()->create('))->toBe([null, null]);
 });
 
 function conventionsReadme(string $package): string
