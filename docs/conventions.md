@@ -43,24 +43,7 @@ A blank key throws `ConfigurationException`, as does a base URL that is not `htt
 
 Method names come from one vocabulary: `list`, `all`, `get`, `create`, `update`, `delete`, `analytics` and the `bulk*` methods. Inputs are named arguments, never input objects.
 
-`list()` fetches one page and returns a `LinkPage`. `all()` returns a lazy iterator over every page; it can be iterated more than once, and each iteration makes fresh requests. It counts pages itself rather than trusting the server's `current_page`, and stops after 10,000 pages whatever the server reports. A larger account should page with `list()`.
-
 ```php
-use ExpertSystems\TrackTo\Enums\LinkSort;
-
-$page = $client->links()->list(
-    search: 'launch',
-    folderId: 4,
-    tag: 9,
-    sort: LinkSort::Recent,
-    perPage: 50,
-    page: 2,
-);
-
-foreach ($client->links()->all(search: 'launch', sort: LinkSort::Recent, perPage: 100) as $link) {
-    echo $link->slug;
-}
-
 $link = $client->links()->get('007');
 
 $created = $client->links()->create(
@@ -133,7 +116,40 @@ API exceptions expose:
 | `rateLimit()` | A `RateLimitInfo` |
 | `response()` | The Saloon `Response` |
 
+A well-formed but unknown, revoked or expired key returns 403 `forbidden`, so it raises `ForbiddenException`. A 401 `unauthorized` is returned only when the `Authorization` header is absent, which the SDK never sends.
+
 `RateLimitInfo` has four nullable integer fields: `limit`, `remaining`, `reset` and `retryAfter`. A field is `null` when the server did not send the header it comes from. When `remaining` is 0 and no `Retry-After` header is present, `retryAfter` is the reset time.
+
+## Pagination
+
+`list()` fetches one page and returns a `LinkPage`. `all()` returns a lazy iterator over every page; it can be iterated more than once, and each iteration makes fresh requests. It counts pages itself rather than trusting the server's `current_page`, and stops after 10,000 pages whatever the server reports. A larger account should page with `list()`.
+
+```php
+use ExpertSystems\TrackTo\Enums\LinkSort;
+
+$page = $client->links()->list(
+    search: 'launch',
+    folderId: 4,
+    tag: 9,
+    sort: LinkSort::Recent,
+    perPage: 50,
+    page: 2,
+);
+
+foreach ($client->links()->all(search: 'launch', folderId: 4, tag: 9, sort: LinkSort::Recent, perPage: 100) as $link) {
+    echo $link->slug;
+}
+```
+
+The server clamps `per_page` into the range 1 to 100, so the SDK adds no client-side guard and sends the value it is given. Probed against a local track.to on 2026-10-14, every value below returned HTTP 200; `0` falls back to the server default of 25 rather than 1:
+
+| `per_page` sent | HTTP | `meta.per_page` returned |
+| --- | --- | --- |
+| `0` | 200 | 25 |
+| `1` | 200 | 1 |
+| `100` | 200 | 100 |
+| `101` | 200 | 100 |
+| `-1` | 200 | 1 |
 
 ## Updates
 
@@ -151,6 +167,13 @@ $client->links()->update(
     folderId: 4,                     // move to folder 4
     removePassword: true,            // drop the password
 );                                   // everything else is left unchanged
+
+$client->links()->update(
+    slug: 'launch-q4',
+    destinationUrl: 'https://example.com/new',
+    tags: ['launch'],                // replace the tags
+    password: 'hunter2',             // set a password
+);
 ```
 
 The signature:
@@ -190,6 +213,10 @@ function moveLink(LinksResource $links, string $slug, int|Omitted|null $folderId
 
 `delete(slug:)` returns nothing. A missing link raises `NotFoundException`; it is never treated as already deleted.
 
+```php
+$client->links()->delete(slug: 'launch');
+```
+
 ## Bulk actions
 
 ```php
@@ -218,7 +245,11 @@ A bulk delete that fails part-way, for example on a 5xx or a dropped connection,
 
 ## Analytics
 
-`$client->links()->analytics(slug: '007')` returns a `LinkAnalyticsData`:
+`analytics()` returns a `LinkAnalyticsData`:
+
+```php
+$analytics = $client->links()->analytics(slug: '007');
+```
 
 | Field | Holds |
 | --- | --- |
@@ -276,6 +307,8 @@ The User-Agent is `trackto-php/<version> php/<PHP_VERSION>`, followed by the suf
 
 `ExpertSystems\TrackTo\Testing\Fixtures` is public. `link()` builds a complete link body, `folder()` and `tag()` the folder and tag bodies, `analytics()` an analytics body, `bulk()` a bulk result, `page()` a list response, `error()` an error envelope and `errorResponse()` a Saloon `MockResponse` for an error code. They are checked against the OpenAPI spec, so mocks cannot drift from the real API.
 
+Request classes are public so `MockClient` can match them and `assertSent()` can name them. Sending one directly is unsupported: `sendAndRetry()` on a request overwrites the attempt count, so it bypasses the single-attempt guarantee for bulk actions, which holds only through `LinksResource`.
+
 `withMockClient()` returns a copy of the client wired to a `MockClient`:
 
 ```php
@@ -297,11 +330,17 @@ public static function fake(array $responses = []): MockClient
 
 The config file has six keys: `api_key`, `base_url`, `version`, `connect_timeout`, `timeout` and `user_agent_suffix`. Blank optional values fall back to the SDK defaults.
 
+## Versioning
+
+Both packages are released together: one lockstep `v*` tag publishes `expertsystemsau/trackto-php-client` and `expertsystemsau/trackto-laravel-client` at the same version. While the version is 0.x, a minor bump may break; patch releases do not. Each release pins one `Track-Version`: `2026-07-06` for 0.1.x, the same value as `TrackToClient::DEFAULT_VERSION`. The SDK moves to `1.0.0` after the first live consumer has integrated it.
+
 ## Security notes
 
 The API key is held as a `SensitiveParameterValue`. `var_dump`, `print_r` and `__debugInfo` omit it, and `serialize()` throws.
 
 One residual risk is accepted. An API exception keeps the Saloon `Response`, and that response's request carries the `Authorization` header. Dumping a thrown exception with `var_export` or Symfony's `dd()` can therefore print the key, and the request body too, which for `create()` and `update()` can include a link password. Do not dump exceptions into logs in production; log `getMessage()` and `status()` instead.
+
+`serialize()` on a request that holds a password throws a plain `\Exception`, because PHP refuses to serialise a `SensitiveParameterValue`. It is not a `TrackToException`.
 
 `debug()` prints request headers, so keep it out of production.
 
@@ -310,3 +349,5 @@ One residual risk is accepted. An API exception keeps the Saloon `Response`, and
 `spec/openapi.json` is a copy of the track.to OpenAPI document. Refresh it with `php bin/sync-openapi`, or `php bin/sync-openapi --source=/path/to/openapi.json` to read it from somewhere else.
 
 The contract tests compare the SDK against that spec: every operation needs a request class, every response schema a data object, every error code an exception, and the default `Track-Version` must equal the spec version. Every spec operation is built, so `tests/Contract/excluded-operations.php` is empty; an entry belongs there only while a new API operation is being implemented. Inline response schemas, such as analytics and bulk, are mapped to their data objects by an explicit table, and a new inline response with no entry fails the suite.
+
+`required`-field parity between the spec and the data objects is out of scope. Data objects are deliberately tolerant except for their listed required fields (see Data objects), so a check that every spec `required` entry is required in code would contradict the published convention.
