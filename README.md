@@ -9,6 +9,21 @@ Monorepo for the track.to PHP SDK. It holds two packages, each published to a re
 
 The client is framework-agnostic. The Laravel package builds on it for Laravel 12 and 13.
 
+## Install
+
+Both packages are on Packagist at `1.x` and follow semantic versioning.
+
+```bash
+composer require expertsystemsau/trackto-php-client     # any PHP 8.4+ project
+composer require expertsystemsau/trackto-laravel-client # Laravel 12 or 13
+```
+
+- Guide: [track.to PHP SDK docs](https://www.track.to/docs/guide/php-sdk)
+- Packagist: [trackto-php-client](https://packagist.org/packages/expertsystemsau/trackto-php-client), [trackto-laravel-client](https://packagist.org/packages/expertsystemsau/trackto-laravel-client)
+- Usage: the [client README](packages/trackto-client/README.md) and the [Laravel README](packages/trackto-laravel/README.md)
+- Full behaviour contract: [docs/conventions.md](docs/conventions.md)
+- API reference: [www.track.to/docs/api](https://www.track.to/docs/api)
+
 ## Development
 
 ```bash
