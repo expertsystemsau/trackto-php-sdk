@@ -49,11 +49,11 @@ final class TrackToClient extends Connector
     use AcceptsJson;
     use AlwaysThrowOnErrors;
 
-    public const string DEFAULT_BASE_URL = 'https://api.track.to';
+    public const DEFAULT_BASE_URL = 'https://api.track.to';
 
-    public const string DEFAULT_VERSION = '2026-07-06';
+    public const DEFAULT_VERSION = '2026-07-06';
 
-    private const float READ_BACKOFF = 0.5;
+    private const READ_BACKOFF = 0.5;
 
     private SensitiveParameterValue $apiKey;
 

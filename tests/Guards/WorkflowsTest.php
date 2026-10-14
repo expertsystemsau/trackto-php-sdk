@@ -84,7 +84,8 @@ it('proves the client standalone in tests.yml', function (): void {
     $job = workflow('tests.yml')['jobs']['client-standalone'];
     $names = array_column($job['steps'], 'name');
 
-    expect(count($job['strategy']['matrix']['php']) * count($job['strategy']['matrix']['stability']))->toBe(4)
+    expect($job['strategy']['matrix']['php'])->toBe([8.2, 8.3, 8.4, 8.5])
+        ->and(count($job['strategy']['matrix']['php']) * count($job['strategy']['matrix']['stability']))->toBe(8)
         ->and($names)->toContain('Fail if a framework crept into the client package')
         ->and($names)->toContain('Run the repo guards');
 });

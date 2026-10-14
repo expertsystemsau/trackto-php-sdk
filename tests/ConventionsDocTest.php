@@ -541,7 +541,9 @@ function conventionsCompatibilityRow(string $readme): array
 }
 
 it('states in each README the versions the manifests, the CI matrix and the pinned API version support', function (string $package, string $laravel): void {
-    $matrix = Yaml::parseFile(dirname(__DIR__).'/.github/workflows/tests.yml')['jobs']['tests']['strategy']['matrix'];
+    // The client is proven on its own wider PHP range; the Laravel package by the main matrix.
+    $jobs = Yaml::parseFile(dirname(__DIR__).'/.github/workflows/tests.yml')['jobs'];
+    $matrix = $jobs[$package === 'trackto-client' ? 'client-standalone' : 'tests']['strategy']['matrix'];
     $manifest = json_decode((string) file_get_contents(dirname(__DIR__)."/packages/{$package}/composer.json"), true, flags: JSON_THROW_ON_ERROR);
     $php = array_map(strval(...), $matrix['php']);
 

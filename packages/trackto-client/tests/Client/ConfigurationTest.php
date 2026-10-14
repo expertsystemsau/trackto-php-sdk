@@ -24,7 +24,7 @@ function lastPending(TrackToClient $client): PendingRequest
 dataset('blank keys', [
     'constructor empty' => [fn (): TrackToClient => new TrackToClient(apiKey: '')],
     'constructor spaces' => [fn (): TrackToClient => new TrackToClient(apiKey: '   ')],
-    'withApiKey empty' => [fn (): TrackToClient => new TrackToClient(apiKey: TestClient::API_KEY)->withApiKey('')],
+    'withApiKey empty' => [fn (): TrackToClient => (new TrackToClient(apiKey: TestClient::API_KEY))->withApiKey('')],
 ]);
 
 it('rejects a blank API key with a catchable SDK exception', function (Closure $build): void {

@@ -2,6 +2,13 @@
 
 ## [Unreleased](https://github.com/expertsystemsau/trackto-php-sdk/commits/main)
 
+## v1.1.0 - 2026-10-14
+
+### Changed
+
+- `expertsystemsau/trackto-php-client` now supports PHP 8.2 and 8.3 as well as 8.4 and 8.5. Its class constants no longer declare a type, because typed constants need PHP 8.3. Their values are unchanged.
+- `expertsystemsau/trackto-laravel-client` still requires PHP 8.4.
+
 ## v1.0.0 - 2026-10-14
 
 The first stable release. The API is unchanged from v0.1.0. From this release both packages follow semantic versioning: a breaking change needs a new major version.

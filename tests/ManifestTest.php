@@ -39,7 +39,7 @@ it('has no version or repositories key', function (string $path): void {
 it('keeps the client framework-free', function (): void {
     $require = manifest('packages/trackto-client/composer.json')['require'];
 
-    expect($require['php'])->toBe('^8.4');
+    expect($require['php'])->toBe('^8.2');
 
     foreach (array_keys($require) as $name) {
         expect($name)->not->toStartWith('laravel/')->not->toStartWith('illuminate/')->not->toStartWith('orchestra/');

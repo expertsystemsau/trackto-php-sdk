@@ -12,7 +12,7 @@ use Saloon\Http\Faking\MockResponse;
  */
 final class Fixtures
 {
-    private const array ERROR_STATUS = [
+    private const ERROR_STATUS = [
         'validation_error' => 422,
         'unauthorized' => 401,
         'forbidden' => 403,

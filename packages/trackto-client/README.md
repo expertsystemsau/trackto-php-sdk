@@ -1,6 +1,6 @@
 # track.to PHP client
 
-Framework-agnostic PHP client for the track.to API. Requires PHP 8.4 or later.
+Framework-agnostic PHP client for the track.to API. Requires PHP 8.2 or later.
 
 This repository is a read-only split of [`expertsystemsau/trackto-php-sdk`](https://github.com/expertsystemsau/trackto-php-sdk). Open issues and pull requests there, not here.
 
@@ -8,7 +8,7 @@ This repository is a read-only split of [`expertsystemsau/trackto-php-sdk`](http
 
 | Version | PHP | Laravel | track.to API (Track-Version) |
 | --- | --- | --- | --- |
-| 1.x | 8.4, 8.5 | any (framework-agnostic) | 2026-07-06 |
+| 1.x | 8.2, 8.3, 8.4, 8.5 | any (framework-agnostic) | 2026-07-06 |
 
 ## Install
 

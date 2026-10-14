@@ -7,5 +7,8 @@ parameters:
     checkOctaneCompatibility: true
     tmpDir: build/phpstan
     phpVersion:
-        min: 80400
+        min: 80200
         max: 80599
+    # The client supports PHP 8.2, which has no typed class constants (8.3+).
+    type_coverage:
+        constant_type: 0

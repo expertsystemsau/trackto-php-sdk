@@ -13,7 +13,7 @@ use Throwable;
 
 final class TestClient
 {
-    public const string API_KEY = 'tk_test_sentinel_key';
+    public const API_KEY = 'tk_test_sentinel_key';
 
     private static bool $strayArmed = false;
 
