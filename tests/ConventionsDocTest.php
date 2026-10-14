@@ -14,6 +14,7 @@ use ExpertSystems\TrackTo\Resources\LinksResource;
 use ExpertSystems\TrackTo\Resources\TagsResource;
 use ExpertSystems\TrackTo\Support\RateLimitInfo;
 use ExpertSystems\TrackTo\TrackToClient;
+use Symfony\Component\Yaml\Yaml;
 
 function conventionsDoc(): string
 {
@@ -457,4 +458,85 @@ it('puts each promise in the section it belongs to', function (string $section, 
 
 it('keeps undecided wording out of the conventions', function (): void {
     expect(preg_match('/\b(TBD|TODO|to be decided|open question|undecided)\b/i', conventionsDoc()))->toBe(0);
+});
+
+it('calls the client only with named arguments that exist, in the client README', function (): void {
+    $readme = (string) file_get_contents(dirname(__DIR__).'/packages/trackto-client/README.md');
+    $blocks = conventionsPhpBlocks($readme);
+    $checked = 0;
+
+    foreach (conventionsCalls() as [$call, $class, $method]) {
+        $valid = conventionsParameters(new ReflectionMethod($class, $method));
+
+        foreach ($blocks as $block) {
+            foreach (conventionsCallArguments($block, $call) as $name) {
+                $checked++;
+                expect($name)->toBeIn($valid, "{$call} in the README passes an argument that is positional or not a parameter of {$method}().");
+            }
+        }
+    }
+
+    expect($checked)->toBeGreaterThan(4);
+});
+
+function conventionsReadme(string $package): string
+{
+    return (string) file_get_contents(dirname(__DIR__)."/packages/{$package}/README.md");
+}
+
+/**
+ * Cells of the first data row under `## Compatibility`.
+ *
+ * @return list<string>
+ */
+function conventionsCompatibilityRow(string $readme): array
+{
+    $section = conventionsSections($readme)['Compatibility'] ?? '';
+    $rows = array_values(array_filter(explode("\n", $section), static fn (string $line): bool => str_starts_with($line, '|')));
+
+    return array_map('trim', explode('|', trim($rows[2] ?? '', '|')));
+}
+
+it('states in each README the versions the manifests, the CI matrix and the pinned API version support', function (string $package, string $laravel): void {
+    $matrix = Yaml::parseFile(dirname(__DIR__).'/.github/workflows/tests.yml')['jobs']['tests']['strategy']['matrix'];
+    $manifest = json_decode((string) file_get_contents(dirname(__DIR__)."/packages/{$package}/composer.json"), true, flags: JSON_THROW_ON_ERROR);
+    $php = array_map(strval(...), $matrix['php']);
+
+    expect(ltrim($manifest['require']['php'], '^'))->toBe($php[0]);
+
+    if ($laravel === '') {
+        $majors = array_map(static fn (string $range): string => explode('.', ltrim($range, '^'))[0], explode('||', $manifest['require']['illuminate/support']));
+
+        expect($majors)->toBe(array_map(static fn (string $lane): string => explode('.', $lane)[0], $matrix['laravel']));
+        $laravel = implode(', ', $majors);
+    }
+
+    $readme = conventionsReadme($package);
+
+    expect(substr_count($readme, "\n## Compatibility\n"))->toBe(1)
+        ->and(strpos($readme, '## Compatibility'))->toBeLessThan(strpos($readme, '## License'))
+        ->and(substr_count($readme, '| 0.1.x |'))->toBe(1)
+        ->and(array_slice(conventionsCompatibilityRow($readme), 1))->toBe([implode(', ', $php), $laravel, TrackToClient::DEFAULT_VERSION])
+        ->and(conventionsCompatibilityRow($readme)[0])->toMatch('/^\d+\.\d+\.x$/');
+})->with([
+    'client' => ['trackto-client', 'any (framework-agnostic)'],
+    'laravel' => ['trackto-laravel', ''],
+]);
+
+it('keeps release-pending wording out of the READMEs and shows the install commands', function (): void {
+    foreach (['trackto-client', 'trackto-laravel'] as $package) {
+        expect(preg_match('/Not yet released|Available from the first tagged release/', conventionsReadme($package)))->toBe(0);
+    }
+
+    expect(conventionsReadme('trackto-client'))->toContain('composer require expertsystemsau/trackto-php-client')
+        ->toContain('https://github.com/expertsystemsau/trackto-php-sdk/blob/main/docs/conventions.md')
+        ->and(conventionsReadme('trackto-laravel'))->toContain('composer require expertsystemsau/trackto-laravel-client');
+});
+
+it('shows the client README quick start, errors and testing sections', function (): void {
+    $readme = conventionsReadme('trackto-client');
+
+    foreach (['## Install', '## Quick start', '## Errors', '## Testing', 'links()->create(', 'links()->list(', 'links()->all(', 'folders()->', 'tags()->', 'TrackToException', 'RateLimitedException', 'rateLimit()', 'withMockClient(', 'Fixtures'] as $needle) {
+        expect($readme)->toContain($needle);
+    }
 });
