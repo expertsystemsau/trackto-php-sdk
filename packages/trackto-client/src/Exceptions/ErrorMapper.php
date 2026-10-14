@@ -48,13 +48,25 @@ final class ErrorMapper
             );
         }
 
-        // Characters, not bytes, and no mbstring requirement; the byte cut is the fallback that keeps the cap.
-        $message = preg_match('/\\A.{0,500}/su', $message, $match) === 1 ? $match[0] : substr($message, 0, 500);
+        $message = self::cap($message);
 
         $errors = is_array($body['errors'] ?? null) ? $body['errors'] : [];
+
+        foreach ($errors as $field => $messages) {
+            if (is_array($messages)) {
+                $errors[$field] = array_map(static fn (mixed $entry): mixed => is_string($entry) ? self::cap($entry) : $entry, $messages);
+            }
+        }
+
         $class = self::BY_NAME[$name] ?? self::fallback($status);
 
         return new $class($response, $message, $errors);
+    }
+
+    /** Characters, not bytes, and no mbstring requirement; the byte cut is the fallback that keeps the cap. */
+    private static function cap(string $text): string
+    {
+        return preg_match('/\\A.{0,500}/su', $text, $match) === 1 ? $match[0] : substr($text, 0, 500);
     }
 
     /**

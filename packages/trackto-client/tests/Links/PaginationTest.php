@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ExpertSystems\TrackTo\Data\LinkData;
+use ExpertSystems\TrackTo\Pagination\LinkIterator;
 use ExpertSystems\TrackTo\Pagination\LinksPaginator;
 use ExpertSystems\TrackTo\Requests\ListLinksRequest;
 use ExpertSystems\TrackTo\Testing\Fixtures;
@@ -140,8 +141,19 @@ it('hydrates each page once across a full links()->all() walk', function (): voi
     ]);
     $links = TestClient::make($mock)->links()->all(perPage: 2);
 
-    expect(slugsOf($links))->toBe(['a', 'b', 'c', 'd', 'e'])
-        ->and($links->hydrations)->toBe(3);
+    expect(slugsOf($links))->toBe(['a', 'b', 'c', 'd', 'e']);
+    $mock->assertSentCount(3);
+});
+
+it('exposes no mutable page counter on the link iterator', function (): void {
+    expect((new ReflectionClass(LinkIterator::class))->hasProperty('hydrations'))->toBeFalse();
+});
+
+it('sends no request for an all() that is never iterated', function (): void {
+    $mock = new MockClient([MockResponse::make(Fixtures::page(pageLinks(['a']), 1, 1, 1, 1), 200)]);
+    TestClient::make($mock)->links()->all(perPage: 1);
+
+    $mock->assertNothingSent();
 });
 
 it('walks identical page bodies to the reported last page without a non-SDK exception', function (): void {
