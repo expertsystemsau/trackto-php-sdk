@@ -66,6 +66,7 @@
             "vendor/bin/phpstan analyse --memory-limit=1G"
         ],
         "test:types": [
+            "@putenv FORK_MEM_PER_PROC=1000000000000000",
             "vendor/bin/pest --type-coverage --min=100"
         ],
         "test:unit": [

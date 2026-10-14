@@ -78,3 +78,17 @@ it('states the release policy in CONTRIBUTING.md', function (): void {
         ->toContain('Both packages are released together with lockstep v* tags: one tag on this repository is split to both package repositories.')
         ->toContain('Versions stay 0.x until the first live consumer integrates the SDK.');
 });
+
+it('declares composer-runtime-api in the client and root manifests but not the Laravel package', function (): void {
+    expect(manifest('packages/trackto-client/composer.json')['require']['composer-runtime-api'])->toBe('^2.0')
+        ->and(manifest('composer.json')['require']['composer-runtime-api'])->toBe('^2.0')
+        ->and(manifest('packages/trackto-laravel/composer.json')['require'])->not->toHaveKey('composer-runtime-api');
+});
+
+it('runs type coverage in one forked worker', function (): void {
+    $script = manifest('composer.json')['scripts']['test:types'];
+    $putenv = array_search('@putenv FORK_MEM_PER_PROC=1000000000000000', $script, true);
+    $coverage = array_search('vendor/bin/pest --type-coverage --min=100', $script, true);
+
+    expect($putenv)->toBeInt()->and($coverage)->toBeInt()->and($putenv)->toBeLessThan($coverage);
+});
