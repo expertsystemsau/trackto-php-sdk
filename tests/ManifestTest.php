@@ -51,7 +51,7 @@ it('pins the Laravel package illuminate constraint', function (): void {
 
     expect($require['illuminate/support'])->toBe('^12.0||^13.0')
         ->and($require['illuminate/console'])->toBe('^12.0||^13.0')
-        ->and($require['expertsystemsau/trackto-php-client'])->toBe('^0.1')
+        ->and($require['expertsystemsau/trackto-php-client'])->toBe('^1.0')
         ->and(manifest('composer.json')['require']['illuminate/console'])->toBe('^12.0||^13.0');
 });
 
@@ -76,7 +76,7 @@ it('states the release policy in CONTRIBUTING.md', function (): void {
 
     expect($contributing)
         ->toContain('Both packages are released together with lockstep v* tags: one tag on this repository is split to both package repositories.')
-        ->toContain('Versions stay 0.x until the first live consumer integrates the SDK.');
+        ->toContain('Versions follow semantic versioning from 1.0.0: a breaking change needs a new major version.');
 });
 
 it('declares composer-runtime-api in the client and root manifests but not the Laravel package', function (): void {

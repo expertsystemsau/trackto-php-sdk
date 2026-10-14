@@ -484,7 +484,7 @@ it('puts each promise in the section it belongs to', function (string $section, 
         expect($body)->toContain($phrase);
     }
 })->with([
-    'versioning' => ['Versioning', ['lockstep', '0.x', 'may break', TrackToClient::DEFAULT_VERSION, '1.0.0']],
+    'versioning' => ['Versioning', ['lockstep', 'semantic versioning', 'new major version', TrackToClient::DEFAULT_VERSION, '1.0.0']],
     'testing' => ['Testing', ['Request classes are public', 'assertSent()', 'unsupported', 'sendAndRetry()', 'single-attempt guarantee']],
     'security' => ['Security notes', ['serialize()', 'plain `\Exception`']],
     'exceptions' => ['Exceptions', ['403 `forbidden`', '401 `unauthorized`', '`Authorization` header is absent']],
@@ -558,9 +558,9 @@ it('states in each README the versions the manifests, the CI matrix and the pinn
 
     expect(substr_count($readme, "\n## Compatibility\n"))->toBe(1)
         ->and(strpos($readme, '## Compatibility'))->toBeLessThan(strpos($readme, '## License'))
-        ->and(substr_count($readme, '| 0.1.x |'))->toBe(1)
+        ->and(substr_count($readme, '| 1.x |'))->toBe(1)
         ->and(array_slice(conventionsCompatibilityRow($readme), 1))->toBe([implode(', ', $php), $laravel, TrackToClient::DEFAULT_VERSION])
-        ->and(conventionsCompatibilityRow($readme)[0])->toMatch('/^\d+\.\d+\.x$/');
+        ->and(conventionsCompatibilityRow($readme)[0])->toMatch('/^\d+(\.\d+)?\.x$/');
 })->with([
     'client' => ['trackto-client', 'any (framework-agnostic)'],
     'laravel' => ['trackto-laravel', ''],

@@ -12,7 +12,7 @@ Every runtime `require` in a package manifest must match the root `require` byte
 
 Both packages are released together with lockstep v* tags: one tag on this repository is split to both package repositories.
 
-Versions stay 0.x until the first live consumer integrates the SDK.
+Versions follow semantic versioning from 1.0.0: a breaking change needs a new major version.
 
 Tags take the form `v<major>.<minor>.<patch>[-<prerelease>]`, enforced by `bin/check-tag`. Each real tag gets a manually published GitHub release on this repository. Its `CHANGELOG.md` entry is written by hand in the release pull request, before the tag, so it passes the same required checks as any other change on `main`. The split repositories' releases link to it, so the order of tag push and release does not matter. The split repositories ship no changelog of their own.
 

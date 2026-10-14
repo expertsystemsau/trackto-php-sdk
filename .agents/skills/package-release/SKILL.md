@@ -17,7 +17,7 @@ Prepare a safe package release checklist and implementation without tagging, pus
 1. Review `CHANGELOG.md`, generated release notes config, GitHub release workflows, open diff, and pending package changes.
 2. Validate the release state with `composer test` before recommending a release.
 3. Confirm whether version metadata needs to change; many Laravel packages rely on Git tags rather than a hardcoded package version.
-4. Review tag naming (lockstep `v*` tags, one tag releases both packages; versions stay 0.x until the first live consumer), release branch, split workflow, and GitHub release behavior before any release command.
+4. Review tag naming (lockstep `v*` tags, one tag releases both packages; semantic versioning from 1.0.0, so a breaking change needs a new major), release branch, split workflow, and GitHub release behavior before any release command.
 5. Do not tag, push, or publish without explicit user approval.
 
 ## References
