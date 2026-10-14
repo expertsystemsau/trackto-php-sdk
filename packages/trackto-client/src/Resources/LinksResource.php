@@ -5,13 +5,21 @@ declare(strict_types=1);
 namespace ExpertSystems\TrackTo\Resources;
 
 use DateTimeInterface;
+use ExpertSystems\TrackTo\Data\BulkResultData;
+use ExpertSystems\TrackTo\Data\LinkAnalyticsData;
 use ExpertSystems\TrackTo\Data\LinkData;
 use ExpertSystems\TrackTo\Data\LinkPage;
+use ExpertSystems\TrackTo\Enums\BulkAction;
 use ExpertSystems\TrackTo\Enums\LinkSort;
 use ExpertSystems\TrackTo\Pagination\LinkIterator;
+use ExpertSystems\TrackTo\Requests\BulkLinksRequest;
 use ExpertSystems\TrackTo\Requests\CreateLinkRequest;
+use ExpertSystems\TrackTo\Requests\DeleteLinkRequest;
+use ExpertSystems\TrackTo\Requests\GetLinkAnalyticsRequest;
 use ExpertSystems\TrackTo\Requests\GetLinkRequest;
 use ExpertSystems\TrackTo\Requests\ListLinksRequest;
+use ExpertSystems\TrackTo\Requests\UpdateLinkRequest;
+use ExpertSystems\TrackTo\Support\Omitted;
 use ExpertSystems\TrackTo\TrackToClient;
 use SensitiveParameter;
 
@@ -22,6 +30,13 @@ final class LinksResource
     public function get(string $slug): LinkData
     {
         $request = new GetLinkRequest($slug);
+
+        return $request->createDtoFromResponse($this->client->send($request));
+    }
+
+    public function analytics(string $slug): LinkAnalyticsData
+    {
+        $request = new GetLinkAnalyticsRequest($slug);
 
         return $request->createDtoFromResponse($this->client->send($request));
     }
@@ -41,6 +56,8 @@ final class LinksResource
 
     /**
      * Lazily yields every link across all pages, in API order. Each foreach sends a fresh set of requests.
+     * The walk stops silently after 10,000 pages (the paginator's hard ceiling), so a larger account should
+     * page with list().
      */
     public function all(
         ?string $search = null,
@@ -67,6 +84,71 @@ final class LinksResource
         ?array $tags = null,
     ): LinkData {
         $request = new CreateLinkRequest($destinationUrl, $slug, $expiresAt, $password, $folderId, $tags);
+
+        return $request->createDtoFromResponse($this->client->send($request));
+    }
+
+    /**
+     * Updates a link. An omitted argument is left unchanged and `null` clears it; only removePassword clears a password.
+     *
+     * @param  list<string>|Omitted  $tags  Tag names; [] removes all, null is not accepted
+     */
+    public function update(
+        string $slug,
+        string $destinationUrl,
+        string|Omitted $newSlug = Omitted::Value,
+        DateTimeInterface|Omitted|null $expiresAt = Omitted::Value,
+        int|Omitted|null $folderId = Omitted::Value,
+        array|Omitted $tags = Omitted::Value,
+        #[SensitiveParameter] ?string $password = null,
+        bool $removePassword = false,
+    ): LinkData {
+        $request = new UpdateLinkRequest($slug, $destinationUrl, $newSlug, $expiresAt, $folderId, $tags, $password, $removePassword);
+
+        return $request->createDtoFromResponse($this->client->send($request));
+    }
+
+    /**
+     * Deletes the link. A missing link raises NotFoundException; it is never treated as already deleted.
+     */
+    public function delete(string $slug): void
+    {
+        $this->client->send(new DeleteLinkRequest($slug));
+    }
+
+    /**
+     * Moves 1 to 100 links into a folder in one request, never chunked or retried. A refused request (404, 403, 422) changes nothing. A null folder id unfiles them.
+     *
+     * @param  list<string>  $slugs
+     */
+    public function bulkMove(array $slugs, ?int $folderId): BulkResultData
+    {
+        $request = new BulkLinksRequest(BulkAction::Move, $slugs, folderId: $folderId);
+
+        return $request->createDtoFromResponse($this->client->send($request));
+    }
+
+    /**
+     * Tags 1 to 100 links in one request, never chunked or retried. A refused request (404, 403, 422) changes nothing.
+     *
+     * @param  list<string>  $slugs
+     * @param  list<string>  $tags  Tag names
+     */
+    public function bulkTag(array $slugs, array $tags): BulkResultData
+    {
+        $request = new BulkLinksRequest(BulkAction::Tag, $slugs, tags: $tags);
+
+        return $request->createDtoFromResponse($this->client->send($request));
+    }
+
+    /**
+     * Deletes 1 to 100 links in one request, never chunked or retried.
+     *
+     * @param  list<string>  $slugs
+     */
+    public function bulkDelete(array $slugs): BulkResultData
+    {
+        $request = new BulkLinksRequest(BulkAction::Delete, $slugs);
 
         return $request->createDtoFromResponse($this->client->send($request));
     }

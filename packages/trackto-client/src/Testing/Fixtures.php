@@ -49,6 +49,65 @@ final class Fixtures
     }
 
     /**
+     * A complete FolderResource body.
+     *
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    public static function folder(array $overrides = []): array
+    {
+        return array_replace(['id' => 1, 'name' => 'Campaigns', 'links_count' => 0], $overrides);
+    }
+
+    /**
+     * A complete TagResource body.
+     *
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    public static function tag(array $overrides = []): array
+    {
+        return array_replace(['id' => 1, 'name' => 'launch', 'color' => '#2563eb', 'links_count' => 0], $overrides);
+    }
+
+    /**
+     * A complete, unwrapped GET /links/{link}/analytics 200 body.
+     *
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    public static function analytics(array $overrides = []): array
+    {
+        return array_replace([
+            'link' => self::link(),
+            'total' => 5,
+            'overTime' => [
+                ['date' => '2026-07-05', 'count' => 2],
+                ['date' => '2026-07-06', 'count' => 3],
+            ],
+            'topReferrers' => [
+                ['label' => 'example.com', 'count' => 3],
+                ['label' => 'Direct', 'count' => 2],
+            ],
+            'topCountries' => [
+                ['label' => 'AU', 'count' => 4],
+                ['label' => 'Unknown', 'count' => 1],
+            ],
+        ], $overrides);
+    }
+
+    /**
+     * A complete POST /links/bulk 200 body. Overrides merge into `data`.
+     *
+     * @param  array<string, mixed>  $overrides
+     * @return array{data: array<string, mixed>}
+     */
+    public static function bulk(array $overrides = []): array
+    {
+        return ['data' => array_replace(['action' => 'move', 'slugs' => ['abc123']], $overrides)];
+    }
+
+    /**
      * A GET /links 200 body. `total` defaults to the number of links given.
      *
      * @param  list<array<string, mixed>>  $links

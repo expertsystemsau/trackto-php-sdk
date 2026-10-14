@@ -14,9 +14,12 @@ use Saloon\Http\Response;
 /**
  * @implements IteratorAggregate<int, LinkData>
  */
-final readonly class LinkIterator implements IteratorAggregate
+final class LinkIterator implements IteratorAggregate
 {
-    public function __construct(private TrackToClient $client, private ListLinksRequest $request) {}
+    /** @internal Page hydrations in the most recent walk; tests observe single hydration through all() with it. */
+    public int $hydrations = 0;
+
+    public function __construct(private readonly TrackToClient $client, private readonly ListLinksRequest $request) {}
 
     /**
      * A fresh paginator per foreach, so the result can be iterated again (a bare generator cannot).
@@ -25,14 +28,19 @@ final readonly class LinkIterator implements IteratorAggregate
      */
     public function getIterator(): Generator
     {
-        foreach (new LinksPaginator($this->client, $this->request) as $response) {
+        $paginator = new LinksPaginator($this->client, $this->request);
+
+        // Saloon's items() is typed as yielding responses, so walk the pages and read items through the cached page().
+        foreach ($paginator as $response) {
             if (! $response instanceof Response) {
                 continue;
             }
 
-            foreach ($this->request->createDtoFromResponse($response)->items as $link) {
+            foreach ($paginator->page($response)->items as $link) {
                 yield $link;
             }
+
+            $this->hydrations = $paginator->hydrations;
         }
     }
 }

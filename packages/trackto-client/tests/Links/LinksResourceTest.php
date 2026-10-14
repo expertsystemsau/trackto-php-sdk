@@ -170,3 +170,11 @@ it('raises a ConfigurationException, not a JsonException, for a body field that 
 
     $this->fail('No exception thrown.');
 });
+
+it('drops tag keys on create so the body tags are always a JSON list', function (): void {
+    $mock = new MockClient([MockResponse::make(['data' => Fixtures::link()], 200)]);
+
+    TestClient::make($mock)->links()->create('https://example.com/a', tags: ['x' => 'a', 'y' => 'b']);
+
+    expect($mock->getLastPendingRequest()?->body()?->all())->toMatchArray(['tags' => ['a', 'b']]);
+});

@@ -7,8 +7,13 @@ namespace ExpertSystems\TrackTo\Tests\Contract\Support;
 use BackedEnum;
 use DateTimeImmutable;
 use DateTimeInterface;
+use ExpertSystems\TrackTo\Data\AnalyticsCountData;
+use ExpertSystems\TrackTo\Data\AnalyticsDayData;
+use ExpertSystems\TrackTo\Data\BulkResultData;
+use ExpertSystems\TrackTo\Data\LinkAnalyticsData;
 use ExpertSystems\TrackTo\Data\TagData;
 use ExpertSystems\TrackTo\Exceptions\TrackToException;
+use ExpertSystems\TrackTo\Support\Omitted;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionParameter;
@@ -24,6 +29,22 @@ final class Checks
 
     /** Schema names that do not follow the `XResource` to `XData` convention (D-11). */
     private const array DTO_EXCEPTIONS = ['LinkTagResource' => TagData::class];
+
+    /**
+     * Inline response schemas, which have no `XResource` name: operation => [response code, [property path => DTO]].
+     * An empty path is the schema root; a path steps into `items` when its node is an array.
+     *
+     * @var array<string, array{string, array<string, class-string>}>
+     */
+    private const array INLINE_RESPONSES = [
+        'GET /links/{}/analytics' => ['200', [
+            '' => LinkAnalyticsData::class,
+            'overTime' => AnalyticsDayData::class,
+            'topReferrers' => AnalyticsCountData::class,
+            'topCountries' => AnalyticsCountData::class,
+        ]],
+        'POST /links/bulk' => ['200', ['data' => BulkResultData::class]],
+    ];
 
     private const string REQUESTS_NAMESPACE = 'ExpertSystems\\TrackTo\\Requests\\';
 
@@ -80,7 +101,9 @@ final class Checks
             $args = array_map(self::synthesise(...), $constructor?->getParameters() ?? []);
             $request = $class->newInstanceArgs($args);
 
-            $operations[] = self::operation($request->getMethod()->value, rawurldecode($request->resolveEndpoint()));
+            // An int id request synthesises /folders/1; a numeric segment stands for the spec's {param}.
+            $path = (string) preg_replace('#/\d+(?=/|$)#', '/{}', rawurldecode($request->resolveEndpoint()));
+            $operations[] = self::operation($request->getMethod()->value, $path);
         }
 
         return $operations;
@@ -127,7 +150,7 @@ final class Checks
         $parameters = [];
 
         foreach (self::classesIn('/packages/trackto-client/src/Data', self::DATA_NAMESPACE) as $class) {
-            if (str_ends_with($class->getShortName(), 'Data')) {
+            if (str_ends_with($class->getShortName(), 'Data') && ! in_array($class->getName(), self::inlineClasses(), true)) {
                 $schema = substr($class->getShortName(), 0, -4).'Resource';
                 $parameters[$schema] = self::parameterNames($class);
             }
@@ -163,6 +186,104 @@ final class Checks
             foreach (array_keys($schema['properties'] ?? []) as $property) {
                 if (! in_array(lcfirst(str_replace('_', '', ucwords((string) $property, '_'))), $paramsBySchema[$name], true)) {
                     $problems[] = "{$name}.{$property} has no DTO parameter.";
+                }
+            }
+        }
+
+        return $problems;
+    }
+
+    /**
+     * Property-for-parameter check of the inline response schemas, by operation (they have no schema name).
+     *
+     * @param  array<string, mixed>  $spec
+     * @param  array<string, array{string, array<string, class-string>}>  $table
+     * @return list<string>
+     */
+    public static function inlineFields(array $spec, array $table = self::INLINE_RESPONSES): array
+    {
+        $problems = [];
+
+        foreach ($table as $operation => [$code, $nodes]) {
+            $schema = self::inlineSchema($spec, $operation, $code);
+
+            if ($schema === null) {
+                $problems[] = "Inline response {$operation} {$code} is not in the spec.";
+
+                continue;
+            }
+
+            if (! isset($nodes[''])) {
+                // An unmapped root is a pure envelope: every property it has must be a mapped path.
+                foreach (array_keys($schema['properties'] ?? []) as $property) {
+                    if (! isset($nodes[$property])) {
+                        $problems[] = "{$operation} {$property} is a root property with no INLINE_RESPONSES entry.";
+                    }
+                }
+            }
+
+            foreach ($nodes as $path => $class) {
+                $node = self::descend($schema, (string) $path);
+
+                if ($node === null) {
+                    $problems[] = "{$operation} {$path} is not in the spec schema.";
+
+                    continue;
+                }
+
+                if (! isset($node['properties'])) {
+                    $problems[] = "{$operation} {$path} has no checkable properties.";
+
+                    continue;
+                }
+
+                $reflection = new ReflectionClass($class);
+                $parameters = self::parameterNames($reflection);
+
+                foreach ($node['properties'] as $property => $child) {
+                    $label = $path === '' ? (string) $property : $path.'.'.$property;
+
+                    if (! in_array(lcfirst(str_replace('_', '', ucwords((string) $property, '_'))), $parameters, true)) {
+                        $problems[] = "{$operation} {$label} has no {$reflection->getShortName()} parameter.";
+                    }
+
+                    if (! isset($nodes[$label]) && self::isInline($child)) {
+                        $problems[] = "{$operation} {$label} is an inline object with no INLINE_RESPONSES entry.";
+                    }
+                }
+            }
+        }
+
+        return [...$problems, ...self::unmappedInlineResponses($spec, $table)];
+    }
+
+    /**
+     * 2xx JSON responses that are inline but have no table entry, so a new inline response cannot go unchecked.
+     *
+     * @param  array<string, mixed>  $spec
+     * @param  array<string, array{string, array<string, class-string>}>  $table
+     * @return list<string>
+     */
+    private static function unmappedInlineResponses(array $spec, array $table): array
+    {
+        $problems = [];
+
+        foreach ($spec['paths'] ?? [] as $path => $item) {
+            foreach (self::HTTP_METHODS as $method) {
+                $operation = self::operation($method, (string) $path);
+
+                foreach ($item[$method]['responses'] ?? [] as $code => $response) {
+                    $schema = $response['content']['application/json']['schema'] ?? null;
+
+                    if (! str_starts_with((string) $code, '2') || ! is_array($schema) || isset($table[$operation])) {
+                        continue;
+                    }
+
+                    $data = $schema['properties']['data'] ?? null;
+
+                    if (! isset($schema['$ref']) && (! isset($schema['properties']['data']) || self::isInline($data))) {
+                        $problems[] = "{$operation} {$code} has an inline response schema with no DTO mapping.";
+                    }
                 }
             }
         }
@@ -252,6 +373,82 @@ final class Checks
         return strtoupper($method).' '.preg_replace('/\{[^}]*\}/', '{}', $path);
     }
 
+    /**
+     * @return list<class-string>
+     */
+    private static function inlineClasses(): array
+    {
+        return array_values(array_unique(array_merge(...array_map(
+            static fn (array $entry): array => array_values($entry[1]),
+            array_values(self::INLINE_RESPONSES),
+        ))));
+    }
+
+    /**
+     * @param  array<string, mixed>  $spec
+     * @return array<string, mixed>|null
+     */
+    private static function inlineSchema(array $spec, string $operation, string $code): ?array
+    {
+        foreach ($spec['paths'] ?? [] as $path => $item) {
+            foreach (self::HTTP_METHODS as $method) {
+                if (isset($item[$method]) && self::operation($method, (string) $path) === $operation) {
+                    $schema = $item[$method]['responses'][$code]['content']['application/json']['schema'] ?? null;
+
+                    return is_array($schema) ? $schema : null;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $schema
+     * @return array<string, mixed>|null
+     */
+    private static function descend(array $schema, string $path): ?array
+    {
+        $node = $schema;
+
+        foreach ($path === '' ? [] : explode('.', $path) as $segment) {
+            $node = $node['properties'][$segment] ?? null;
+
+            if (! is_array($node)) {
+                return null;
+            }
+
+            if (self::isArrayType($node)) {
+                $node = $node['items'] ?? null;
+
+                if (! is_array($node)) {
+                    return null;
+                }
+            }
+        }
+
+        return $node;
+    }
+
+    private static function isInline(mixed $property): bool
+    {
+        if (! is_array($property)) {
+            return false;
+        }
+
+        return isset($property['properties']) || (self::isArrayType($property) && isset($property['items']['properties']));
+    }
+
+    /**
+     * JSON Schema `type` is a string or a list (`['array', 'null']` for a nullable array).
+     *
+     * @param  array<string, mixed>  $node
+     */
+    private static function isArrayType(array $node): bool
+    {
+        return in_array('array', (array) ($node['type'] ?? []), true);
+    }
+
     private static function root(): string
     {
         return dirname(__DIR__, 3);
@@ -285,16 +482,21 @@ final class Checks
 
     private static function synthesise(ReflectionParameter $parameter): mixed
     {
+        $type = $parameter->getType();
+
         if ($parameter->isDefaultValueAvailable()) {
-            return $parameter->getDefaultValue();
+            $default = $parameter->getDefaultValue();
+
+            // An Omitted id is what BulkLinksRequest::Move rejects, so an int-or-Omitted parameter gets a plain id.
+            return $default === Omitted::Value && str_contains((string) $type, 'int') ? 1 : $default;
         }
 
-        $type = $parameter->getType();
         $name = $type instanceof ReflectionNamedType ? $type->getName() : 'string';
 
         return match (true) {
             $name === 'int' => 1,
-            $name === 'array' => [],
+            // A required array holds one item so a request that checks its count can be built.
+            $name === 'array' => ['{p}'],
             is_subclass_of($name, BackedEnum::class) => $name::cases()[0],
             is_a($name, DateTimeInterface::class, true) => new DateTimeImmutable,
             default => '{p}',

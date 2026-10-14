@@ -46,7 +46,7 @@ if (! is_array($spec) || ! is_string($spec['openapi'] ?? null) || ! is_string($v
 
 $dir = $root.'/spec';
 
-if (! is_dir($dir) && ! mkdir($dir, 0777, true) && ! is_dir($dir)) {
+if (! is_dir($dir) && ! mkdir($dir, 0755, true) && ! is_dir($dir)) {
     fwrite(STDERR, "sync-openapi: cannot create $dir\n");
     exit(1);
 }

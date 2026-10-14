@@ -5,6 +5,7 @@ declare(strict_types=1);
 use ExpertSystems\TrackTo\Testing\Fixtures;
 use ExpertSystems\TrackTo\Tests\Support\TestClient;
 use ExpertSystems\TrackTo\TrackToClient;
+use Saloon\Http\Auth\TokenAuthenticator;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\PendingRequest;
@@ -110,4 +111,19 @@ it('returns a mock-carrying copy and leaves the receiver without a mock', functi
     expect($mocked)->not->toBe($base)
         ->and($mocked->hasMockClient())->toBeTrue()
         ->and($base->hasMockClient())->toBeFalse();
+});
+
+it('sends the new key from withApiKey() even after authenticate() replaced the authenticator', function (): void {
+    $mock = new MockClient([ok(), ok(), ok()]);
+    $original = TestClient::make($mock);
+    $original->authenticate(new TokenAuthenticator('old'));
+
+    $copy = $original->withApiKey('new');
+    $copy->links()->get('x');
+    $original->links()->get('x');
+
+    expect(array_map(
+        static fn (PendingRequest $p): ?string => $p->headers()->get('Authorization'),
+        sentRequests($mock),
+    ))->toBe(['Bearer new', 'Bearer old']);
 });
