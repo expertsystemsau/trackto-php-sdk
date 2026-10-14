@@ -7,14 +7,14 @@ Monorepo for the track.to PHP SDK. It holds two packages, each published to a re
 | `packages/trackto-client` | `expertsystemsau/trackto-php-client` | [`expertsystemsau/trackto-php-client`](https://github.com/expertsystemsau/trackto-php-client) |
 | `packages/trackto-laravel` | `expertsystemsau/trackto-laravel-client` | [`expertsystemsau/trackto-laravel-client`](https://github.com/expertsystemsau/trackto-laravel-client) |
 
-The client is framework-agnostic. The Laravel package builds on it for Laravel 12 and 13.
+The client is framework-agnostic and runs on PHP 8.2 or later. The Laravel package builds on it for Laravel 12 and 13 on PHP 8.4 or later.
 
 ## Install
 
 Both packages are on Packagist at `1.x` and follow semantic versioning.
 
 ```bash
-composer require expertsystemsau/trackto-php-client     # any PHP 8.4+ project
+composer require expertsystemsau/trackto-php-client     # any PHP 8.2+ project
 composer require expertsystemsau/trackto-laravel-client # Laravel 12 or 13
 ```
 

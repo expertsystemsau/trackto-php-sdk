@@ -74,6 +74,13 @@ it('passes a clean fixture', function (): void {
     expect(runDepsGuard(depsFixture($root, $packages))[0])->toBe(0);
 });
 
+it('lets a package set its own PHP floor', function (): void {
+    [$root, $packages] = depsBase();
+    $packages['client']['require']['php'] = '^8.2';
+
+    expect(runDepsGuard(depsFixture($root, $packages))[0])->toBe(0);
+});
+
 it('passes on the real repo', function (): void {
     [$code, $output] = runDepsGuard(null);
 

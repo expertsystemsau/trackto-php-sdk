@@ -56,7 +56,8 @@ $rootRequire = $rootManifest['require'] ?? [];
 
 foreach ($packages as $path => $manifest) {
     foreach ($manifest['require'] ?? [] as $dep => $constraint) {
-        if (in_array($dep, $workspace, true)) {
+        // The PHP floor is per package: the client supports older PHP than the root and the Laravel package.
+        if ($dep === 'php' || in_array($dep, $workspace, true)) {
             continue;
         }
 

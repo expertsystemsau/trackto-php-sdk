@@ -14,7 +14,7 @@ use Saloon\Http\Response;
 final class ErrorMapper
 {
     /** @var array<string, class-string<ApiException>> */
-    public const array BY_NAME = [
+    public const BY_NAME = [
         'validation_error' => ValidationException::class,
         'unauthorized' => UnauthorizedException::class,
         'forbidden' => ForbiddenException::class,
@@ -27,7 +27,7 @@ final class ErrorMapper
         'bad_request' => BadRequestException::class,
     ];
 
-    private const int MAX_ENTRIES = 100;
+    private const MAX_ENTRIES = 100;
 
     public static function map(Response $response): ApiException
     {
