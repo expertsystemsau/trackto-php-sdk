@@ -332,7 +332,7 @@ The config file has six keys: `api_key`, `base_url`, `version`, `connect_timeout
 
 ## Versioning
 
-Both packages are released together: one lockstep `v*` tag publishes `expertsystemsau/trackto-php-client` and `expertsystemsau/trackto-laravel-client` at the same version. While the version is 0.x, a minor bump may break; patch releases do not. Each release pins one `Track-Version`: `2026-07-06` for 0.1.x, the same value as `TrackToClient::DEFAULT_VERSION`. The SDK moves to `1.0.0` after the first live consumer has integrated it.
+Both packages are released together: one lockstep `v*` tag publishes `expertsystemsau/trackto-php-client` and `expertsystemsau/trackto-laravel-client` at the same version. The packages follow semantic versioning from `1.0.0`: minor and patch releases never break, and a breaking change needs a new major version. During 0.x a minor bump may break; that no longer applies. Each release pins one `Track-Version`: `2026-07-06` for 0.1.x and 1.0.x, the same value as `TrackToClient::DEFAULT_VERSION`.
 
 ## Security notes
 

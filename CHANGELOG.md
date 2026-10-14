@@ -2,6 +2,18 @@
 
 ## [Unreleased](https://github.com/expertsystemsau/trackto-php-sdk/commits/main)
 
+## v1.0.0 - 2026-10-14
+
+The first stable release. The API is unchanged from v0.1.0. From this release both packages follow semantic versioning: a breaking change needs a new major version.
+
+### Changed
+
+- `expertsystemsau/trackto-laravel-client` now requires `expertsystemsau/trackto-php-client` `^1.0`.
+
+### Verified
+
+- Both packages were installed from Packagist into a plain PHP project and a fresh Laravel 13 app, and every operation was run against a live track.to instance: links, pagination, updates, analytics with recorded clicks, bulk actions, folders, tags, typed errors, the Artisan commands, and `TrackTo::fake()`.
+
 ## v0.1.0 - 2026-10-14
 
 First release of the track.to PHP SDK: a framework-free client and a Laravel integration, released together under one version.

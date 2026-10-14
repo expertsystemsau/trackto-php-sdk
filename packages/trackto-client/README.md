@@ -8,7 +8,7 @@ This repository is a read-only split of [`expertsystemsau/trackto-php-sdk`](http
 
 | Version | PHP | Laravel | track.to API (Track-Version) |
 | --- | --- | --- | --- |
-| 0.1.x | 8.4, 8.5 | any (framework-agnostic) | 2026-07-06 |
+| 1.x | 8.4, 8.5 | any (framework-agnostic) | 2026-07-06 |
 
 ## Install
 
